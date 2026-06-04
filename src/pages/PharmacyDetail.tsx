@@ -9,10 +9,12 @@ import { MEDICATIONS } from "@/data/medications";
 import { usePharma } from "@/store/PharmaStore";
 import { formatPrice, formatDate, STATUS_ORDER } from "@/lib/format";
 import { AvailabilityStatus } from "@/types";
+import { useEffect } from "react";
 
-function normalize(s: string): string {
+// Fonction de normalisation pour les recherches
+const normalize = (s: string): string => {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+};
 
 const PharmacyDetail = () => {
   const { id = "" } = useParams();
