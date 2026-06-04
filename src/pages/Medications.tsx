@@ -1,0 +1,177 @@
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
+import { MEDICATIONS } from "@/data/medications";
+import { PHARMACIES } from "@/data/pharmacies";
+import { usePharma } from "@/store/PharmaStore";
+import { AvailabilityStatus, MedicationCategory } from "@/types";
+import { formatPrice, STATUS_ORDER } from "@/lib/format";
+
+const CATEGORIES: (MedicationCategory | "all")[] = [
+  "all",
+  "Antalgique",
+  "Antibiotique",
+  "Antipaludique",
+  "Anti-inflammatoire",
+  "Gastro",
+  "Vitamines",
+  "Dermatologie",
+  "Cardiologie",
+  "Diabète",
+  "Respiratoire",
+  "Autre",
+];
+
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+const Medications = () => {
+  const [params, setParams] = useSearchParams();
+  const { state } = usePharma();
+  const [query, setQuery] = useState(params.get("q") ?? "");
+  const [category, setCategory] = useState<MedicationCategory | "all">("all");
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+  useEffect(() => {
+    const next = new URLSearchParams(params);
+    if (query) next.set("q", query);
+    else next.delete("q");
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const results = useMemo(() => {
+    const q = normalize(query.trim());
+    return MEDICATIONS.filter((m) => {
+      if (category !== "all" && m.category !== category) return false;
+      if (q && !normalize(`${m.name} ${m.dci} ${m.category}`).includes(q))
+        return false;
+      return true;
+    }).map((m) => {
+      const byStatus = PHARMACIES.map((ph) => ({
+        pharmacy: ph,
+        entry: state.stock[m.id]?.[ph.id],
+      }));
+      const availablePharmacies = byStatus
+        .filter(
+          (x) => x.entry && (x.entry.status === "available" || x.entry.status === "low")
+        )
+        .sort((a, b) => {
+          const sa = STATUS_ORDER.indexOf(a.entry!.status as AvailabilityStatus);
+          const sb = STATUS_ORDER.indexOf(b.entry!.status as AvailabilityStatus);
+          return sa - sb;
+        });
+      return { med: m, byStatus, availableCount: availablePharmacies.length };
+    }).filter((r) => (onlyAvailable ? r.availableCount > 0 : true));
+  }, [query, category, onlyAvailable, state.stock]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Rechercher un médicament</h1>
+        <p className="text-muted-foreground">
+          Trouvez dans quelles pharmacies un médicament est disponible.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Nom ou DCI du médicament…"
+            className="h-11 pl-10"
+          />
+        </div>
+        <Select value={category} onValueChange={(v) => setCategory(v as MedicationCategory | "all")}>
+          <SelectTrigger className="h-11 md:w-56">
+            <SelectValue placeholder="Catégorie" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c === "all" ? "Toutes les catégories" : c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <label className="flex h-11 cursor-pointer items-center gap-2 rounded-md border bg-card px-3 text-sm">
+          <input
+            type="checkbox"
+            checked={onlyAvailable}
+            onChange={(e) => setOnlyAvailable(e.target.checked)}
+            className="h-4 w-4 accent-[hsl(var(--primary))]"
+          />
+          Disponibles uniquement
+        </label>
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        {results.length} médicament{results.length > 1 ? "s" : ""} trouvé
+        {results.length > 1 ? "s" : ""}
+      </p>
+
+      <div className="space-y-4">
+        {results.map(({ med, byStatus, availableCount }) => (
+          <Card key={med.id} className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-semibold">{med.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {med.dci} · {med.form} · {med.category}
+                </p>
+              </div>
+              <span className="text-sm">
+                <span className="font-semibold text-success">{availableCount}</span>
+                <span className="text-muted-foreground"> / {PHARMACIES.length} pharmacies</span>
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {byStatus.map(({ pharmacy, entry }) => (
+                <Link
+                  key={pharmacy.id}
+                  to={`/pharmacies/${pharmacy.id}`}
+                  className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:border-primary/50"
+                >
+                  <span className="truncate">
+                    <span className="font-medium">{pharmacy.name}</span>
+                    {entry && entry.status !== "out" && (
+                      <span className="ml-1 text-muted-foreground">
+                        {formatPrice(entry.price)}
+                      </span>
+                    )}
+                  </span>
+                  <AvailabilityBadge status={entry?.status ?? "out"} />
+                </Link>
+              ))}
+            </div>
+          </Card>
+        ))}
+
+        {results.length === 0 && (
+          <Card className="p-10 text-center text-muted-foreground">
+            Aucun médicament ne correspond à votre recherche.
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Medications;
