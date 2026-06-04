@@ -43,16 +43,29 @@ const Medications = () => {
   const [params, setParams] = useSearchParams();
   const { state } = usePharma();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [category, setCategory] = useState<MedicationCategory | "all">("all");
-  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [category, setCategory] = useState<MedicationCategory | "all">(
+    (params.get("category") as MedicationCategory | "all") ?? "all"
+  );
+  const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available_at_least_one">(
+    (params.get("availability") as "all" | "available_at_least_one") ?? "all"
+  );
+
+  const AVAILABILITY_FILTERS = [
+    { value: "all", label: "Tous les statuts" },
+    { value: "available_at_least_one", label: "Disponibles (au moins 1 pharmacie)" },
+  ];
 
   useEffect(() => {
     const next = new URLSearchParams(params);
     if (query) next.set("q", query);
     else next.delete("q");
+    if (category !== "all") next.set("category", category);
+    else next.delete("category");
+    if (availabilityFilter !== "all") next.set("availability", availabilityFilter);
+    else next.delete("availability");
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, category, availabilityFilter]);
 
   const results = useMemo(() => {
     const q = normalize(query.trim());
@@ -76,8 +89,11 @@ const Medications = () => {
           return sa - sb;
         });
       return { med: m, byStatus, availableCount: availablePharmacies.length };
-    }).filter((r) => (onlyAvailable ? r.availableCount > 0 : true));
-  }, [query, category, onlyAvailable, state.stock]);
+    }).filter((r) => {
+      if (availabilityFilter === "available_at_least_one" && r.availableCount === 0) return false;
+      return true;
+    });
+  }, [query, category, availabilityFilter, state.stock]);
 
   return (
     <div className="space-y-6">
@@ -110,15 +126,18 @@ const Medications = () => {
             ))}
           </SelectContent>
         </Select>
-        <label className="flex h-11 cursor-pointer items-center gap-2 rounded-md border bg-card px-3 text-sm">
-          <input
-            type="checkbox"
-            checked={onlyAvailable}
-            onChange={(e) => setOnlyAvailable(e.target.checked)}
-            className="h-4 w-4 accent-[hsl(var(--primary))]"
-          />
-          Disponibles uniquement
-        </label>
+        <Select value={availabilityFilter} onValueChange={(v) => setAvailabilityFilter(v as "all" | "available_at_least_one")}>
+          <SelectTrigger className="h-11 md:w-56">
+            <SelectValue placeholder="Disponibilité" />
+          </SelectTrigger>
+          <SelectContent>
+            {AVAILABILITY_FILTERS.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <p className="text-sm text-muted-foreground">
