@@ -4,12 +4,11 @@ import { MapPin, Phone, Clock, ShieldCheck, ArrowLeft, Search, ExternalLink } fr
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
-import { getPharmacy } from "@/data/pharmacies";
-import { MEDICATIONS } from "@/data/medications";
 import { usePharma } from "@/store/PharmaStore";
 import { formatPrice, formatDate, STATUS_ORDER } from "@/lib/format";
 import { AvailabilityStatus } from "@/types";
-import { useEffect } from "react";
+import { usePharmacies } from "@/hooks/usePharmacies";
+import { useMedications } from "@/hooks/useMedications";
 
 // Fonction de normalisation pour les recherches
 const normalize = (s: string): string => {
@@ -18,13 +17,24 @@ const normalize = (s: string): string => {
 
 const PharmacyDetail = () => {
   const { id = "" } = useParams();
-  const pharmacy = getPharmacy(id);
   const { state } = usePharma();
   const [query, setQuery] = useState("");
 
+  const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
+  const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
+
+  const isLoading = isLoadingPharmacies || isLoadingMedications;
+  const isError = isErrorPharmacies || isErrorMedications;
+
+  const pharmacy = useMemo(() => {
+    if (isLoading || isError || !pharmacies) return undefined;
+    return pharmacies.find((p) => p.id === id);
+  }, [id, pharmacies, isLoading, isError]);
+
   const rows = useMemo(() => {
+    if (isLoading || isError || !medications || !pharmacy) return [];
     const q = normalize(query.trim());
-    return MEDICATIONS.filter((m) =>
+    return medications.filter((m) =>
       q ? normalize(`${m.name} ${m.dci} ${m.category}`).includes(q) : true
     )
       .map((m) => ({ med: m, entry: state.stock[m.id]?.[id] }))
@@ -34,7 +44,15 @@ const PharmacyDetail = () => {
         if (sa !== sb) return sa - sb;
         return a.med.name.localeCompare(b.med.name);
       });
-  }, [query, state.stock, id]);
+  }, [query, state.stock, id, medications, pharmacy, isLoading, isError]);
+
+  if (isLoading) {
+    return <div>Chargement des détails de la pharmacie...</div>;
+  }
+
+  if (isError) {
+    return <div>Erreur lors du chargement des détails de la pharmacie.</div>;
+  }
 
   if (!pharmacy) {
     return (
@@ -48,7 +66,8 @@ const PharmacyDetail = () => {
   }
 
   const isDuty = state.dutyPharmacyId === pharmacy.id;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${pharmacy.lat},${pharmacy.lng}`;
+  const mapsQuery = `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
 
   return (
     <div className="space-y-6">
