@@ -10,6 +10,7 @@ import { AvailabilityStatus } from "@/types";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
 import MAPS_URLS from "@/data/mapsUrls";
+import MAPS_METADATA from "@/data/mapsMetadata";
 
 // Fonction de normalisation pour les recherches
 const normalize = (s: string): string => {
@@ -66,22 +67,27 @@ const PharmacyDetail = () => {
     );
   }
 
+  const meta = (MAPS_METADATA as any)[pharmacy.id] || null;
   const isDuty = state.dutyPharmacyId === pharmacy.id;
-  // Prefer explicit URL overrides (backend-provided or local mapping)
-  const explicitMapUrl = (pharmacy as any).mapsUrl || MAPS_URLS[pharmacy.id];
+  // Prefer explicit URL overrides (backend-provided, local mapping, or metadata)
+  const explicitMapUrl = (pharmacy as any).mapsUrl || MAPS_URLS[pharmacy.id] || meta?.mapsUrl;
 
   let mapsUrl = "#";
   if (explicitMapUrl && explicitMapUrl.trim().length > 0) {
     mapsUrl = explicitMapUrl;
   } else {
-    const hasAddress = pharmacy.address && pharmacy.address.trim().length > 0;
+    const hasAddress = (meta?.address ?? pharmacy.address) && (meta?.address ?? pharmacy.address).trim().length > 0;
     const mapsQuery = hasAddress
-      ? `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`
+      ? `${meta?.address ?? pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`
       : (pharmacy.lat && pharmacy.lng ? `${pharmacy.lat},${pharmacy.lng}` : "");
     mapsUrl = mapsQuery
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
       : '#';
   }
+
+  const displayPhone = meta?.phone ?? pharmacy.phone;
+  const displayHours = meta?.hours ?? pharmacy.hours;
+  const displayAddress = meta?.address ?? pharmacy.address;
 
   return (
     <div className="space-y-6">
@@ -91,9 +97,15 @@ const PharmacyDetail = () => {
 
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">{pharmacy.name}</h1>
-            <p className="text-muted-foreground">{pharmacy.quartier}</p>
+          <div className="flex items-start gap-4">
+            {meta?.images?.length ? (
+              // show first image if available
+              <img src={meta.images[0]} alt={`${pharmacy.name}`} className="h-20 w-20 rounded object-cover" />
+            ) : null}
+            <div>
+              <h1 className="text-2xl font-bold">{pharmacy.name}</h1>
+              <p className="text-muted-foreground">{pharmacy.quartier}</p>
+            </div>
           </div>
           {isDuty && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
@@ -104,16 +116,16 @@ const PharmacyDetail = () => {
 
         <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2">
           <p className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {pharmacy.address}
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {displayAddress}
           </p>
           <p className="flex items-center gap-2">
             <Phone className="h-4 w-4 shrink-0" />
-            <a href={`tel:${pharmacy.phone.replace(/\s/g, "")}`} className="hover:text-primary">
-              {pharmacy.phone}
+            <a href={`tel:${(displayPhone || "").replace(/\s/g, "")}`} className="hover:text-primary">
+              {displayPhone}
             </a>
           </p>
           <p className="flex items-start gap-2">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0" /> {pharmacy.hours}
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" /> {displayHours}
           </p>
           <a
             href={mapsUrl}
