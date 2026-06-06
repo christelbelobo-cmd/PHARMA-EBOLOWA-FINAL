@@ -66,8 +66,13 @@ const PharmacyDetail = () => {
   }
 
   const isDuty = state.dutyPharmacyId === pharmacy.id;
-  const mapsQuery = `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+  const hasAddress = pharmacy.address && pharmacy.address.trim().length > 0;
+  const mapsQuery = hasAddress
+    ? `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`
+    : (pharmacy.lat && pharmacy.lng ? `${pharmacy.lat},${pharmacy.lng}` : "");
+  const mapsUrl = mapsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+    : '#';
 
   return (
     <div className="space-y-6">
