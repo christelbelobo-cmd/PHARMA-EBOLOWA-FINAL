@@ -9,6 +9,7 @@ import { formatPrice, formatDate, STATUS_ORDER } from "@/lib/format";
 import { AvailabilityStatus } from "@/types";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
+import MAPS_URLS from "@/data/mapsUrls";
 
 // Fonction de normalisation pour les recherches
 const normalize = (s: string): string => {
@@ -66,13 +67,21 @@ const PharmacyDetail = () => {
   }
 
   const isDuty = state.dutyPharmacyId === pharmacy.id;
-  const hasAddress = pharmacy.address && pharmacy.address.trim().length > 0;
-  const mapsQuery = hasAddress
-    ? `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`
-    : (pharmacy.lat && pharmacy.lng ? `${pharmacy.lat},${pharmacy.lng}` : "");
-  const mapsUrl = mapsQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
-    : '#';
+  // Prefer explicit URL overrides (backend-provided or local mapping)
+  const explicitMapUrl = (pharmacy as any).mapsUrl || MAPS_URLS[pharmacy.id];
+
+  let mapsUrl = "#";
+  if (explicitMapUrl && explicitMapUrl.trim().length > 0) {
+    mapsUrl = explicitMapUrl;
+  } else {
+    const hasAddress = pharmacy.address && pharmacy.address.trim().length > 0;
+    const mapsQuery = hasAddress
+      ? `${pharmacy.address}${pharmacy.quartier ? ', ' + pharmacy.quartier : ''}`
+      : (pharmacy.lat && pharmacy.lng ? `${pharmacy.lat},${pharmacy.lng}` : "");
+    mapsUrl = mapsQuery
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+      : '#';
+  }
 
   return (
     <div className="space-y-6">
