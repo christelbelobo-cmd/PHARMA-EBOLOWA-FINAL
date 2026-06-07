@@ -89,11 +89,6 @@ const PharmacyDetail = () => {
   const displayHours = meta?.hours ?? pharmacy.hours;
   const displayAddress = meta?.address ?? pharmacy.address;
 
-  // Debug log
-  if (meta) {
-    // eslint-disable-next-line no-console
-    console.log("MAPS_METADATA for", pharmacy.id, meta);
-  }
 
   return (
     <div className="space-y-6">
@@ -118,14 +113,6 @@ const PharmacyDetail = () => {
               <ShieldCheck className="h-4 w-4" /> Pharmacie de garde
             </span>
           )}
-          {/* Debug badge to show MAPS_METADATA usage */}
-          {meta ? (
-            <div className="mt-3">
-              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-                Données locales utilisées
-              </span>
-            </div>
-          ) : null}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2">
