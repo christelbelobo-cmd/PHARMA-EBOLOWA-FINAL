@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { PHARMACIES } from '../data/pharmacies';
+import { PHARMACIES } from './data/pharmacies';
 
 export type User = {
   username: string;
