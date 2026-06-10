@@ -14,7 +14,7 @@ export function Header() {
     { to: "/pharmacies", label: "Pharmacies" },
   ];
 
-  const NAV = (role === "admin" || role === "pharmacist") ? [...NAV_BASE, { to: "/admin", label: "Admin" }] : NAV_BASE;
+  const NAV = (role === "admin") ? [...NAV_BASE, { to: "/admin", label: "Admin" }] : NAV_BASE;
 
   return (
     <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
