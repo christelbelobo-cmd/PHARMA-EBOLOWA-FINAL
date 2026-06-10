@@ -9,6 +9,7 @@ import { formatPrice, formatDate, STATUS_ORDER } from "@/lib/format";
 import { AvailabilityStatus } from "@/types";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
+import { useQueryClient } from '@tanstack/react-query';
 import MAPS_URLS from "@/data/mapsUrls";
 import MAPS_METADATA from "@/data/mapsMetadata";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,8 +102,45 @@ const PharmacyDetail = () => {
   const displayHours = meta?.hours ?? pharmacy.hours;
   const displayAddress = meta?.address ?? pharmacy.address;
 
-  // Upload handler for pharmacist (upload CSV or JSON)
-  async function handleFile(file?: File) {
+  const { token, role, pharmacyId: authPharmacyId } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Edit mode for pharmacist
+  const canEditPharmacy = (role === 'pharmacist' && authPharmacyId === pharmacy.id) || role === 'admin';
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(pharmacy.name);
+  const [editAddress, setEditAddress] = useState(displayAddress || "");
+  const [editPhone, setEditPhone] = useState(displayPhone || "");
+  const [editHours, setEditHours] = useState(displayHours || "");
+
+  useEffect(() => {
+    setEditName(pharmacy.name);
+    setEditAddress(displayAddress || "");
+    setEditPhone(displayPhone || "");
+    setEditHours(displayHours || "");
+  }, [pharmacy, displayAddress, displayPhone, displayHours]);
+
+  async function savePharmacyInfo() {
+    if (!token) return alert('Vous devez être connecté');
+    try {
+      const res = await fetch(`http://localhost:5000/api/pharmacies/${encodeURIComponent(pharmacy.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editName, address: editAddress, phone: editPhone, hours: editHours }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return alert(err.message || 'Erreur');
+      }
+      await queryClient.invalidateQueries(['pharmacies']);
+      alert('Informations mises à jour');
+      setEditing(false);
+    } catch (e) {
+      alert('Erreur réseau');
+    }
+  }
+
+  // Upload handler for pharmacist (upload CSV or JSON)  async function handleFile(file?: File) {
     if (!file || !medications) return;
     const text = await file.text();
     let rows: any[] = [];

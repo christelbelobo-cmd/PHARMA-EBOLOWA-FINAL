@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useQueryClient } from '@tanstack/react-query';
+import { usePharmacies } from '@/hooks/usePharmacies';
 import { Search, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,12 +33,51 @@ const Admin = () => {
   const [pharmacyId, setPharmacyId] = useState(PHARMACIES[0].id);
   const [query, setQuery] = useState("");
 
+  const { data: pharmaciesData } = usePharmacies();
+  const queryClient = useQueryClient();
+
   const rows = useMemo(() => {
     const q = normalize(query.trim());
     return MEDICATIONS.filter((m) =>
       q ? normalize(`${m.name} ${m.dci} ${m.category}`).includes(q) : true
     );
   }, [query]);
+
+  // form for editing pharmacy info
+  const selectedPharmacy = (pharmaciesData || []).find((p) => p.id === pharmacyId);
+  const [editName, setEditName] = useState(selectedPharmacy?.name ?? "");
+  const [editAddress, setEditAddress] = useState(selectedPharmacy?.address ?? "");
+  const [editPhone, setEditPhone] = useState(selectedPharmacy?.phone ?? "");
+  const [editHours, setEditHours] = useState(selectedPharmacy?.hours ?? "");
+
+  // sync when selection changes
+  useEffect(() => {
+    setEditName(selectedPharmacy?.name ?? "");
+    setEditAddress(selectedPharmacy?.address ?? "");
+    setEditPhone(selectedPharmacy?.phone ?? "");
+    setEditHours(selectedPharmacy?.hours ?? "");
+  }, [selectedPharmacy]);
+
+  const { token } = useAuth();
+
+  async function savePharmacy() {
+    if (!token) return alert('Vous devez être connecté');
+    try {
+      const res = await fetch(`http://localhost:5000/api/pharmacies/${encodeURIComponent(pharmacyId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editName, address: editAddress, phone: editPhone, hours: editHours }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return alert(err.message || 'Erreur');
+      }
+      await queryClient.invalidateQueries(['pharmacies']);
+      toast({ title: 'Pharmacie mise à jour' });
+    } catch (e) {
+      alert('Erreur réseau');
+    }
+  }
 
   // Admin import handler (same format as pharmacist)
   async function handleFile(file?: File) {

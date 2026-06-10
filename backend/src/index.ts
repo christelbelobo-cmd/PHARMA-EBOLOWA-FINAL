@@ -123,6 +123,26 @@ AppDataSource.initialize()
       res.json(stockEntry);
     });
 
+    // Update pharmacy info (admin or pharmacist for own pharmacy)
+    app.patch('/api/pharmacies/:id', authenticate, authorizePharmacistOrAdminForPharmacy('id'), async (req, res) => {
+      const { id } = req.params;
+      const { name, address, phone, hours, quartier, lat, lng, mapsUrl } = req.body;
+      const pharmacy = await pharmacyRepository.findOne({ where: { id } });
+      if (!pharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
+
+      if (name !== undefined) pharmacy.name = name;
+      if (address !== undefined) pharmacy.address = address;
+      if (phone !== undefined) pharmacy.phone = phone;
+      if (hours !== undefined) pharmacy.hours = hours;
+      if (quartier !== undefined) pharmacy.quartier = quartier;
+      if (lat !== undefined) pharmacy.lat = lat;
+      if (lng !== undefined) pharmacy.lng = lng;
+      if (mapsUrl !== undefined) (pharmacy as any).mapsUrl = mapsUrl;
+
+      await pharmacyRepository.save(pharmacy);
+      res.json(pharmacy);
+    });
+
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
