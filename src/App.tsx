@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
 import { PharmaProvider } from "@/store/PharmaStore";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
@@ -21,22 +22,24 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <PharmaProvider>
-        <HashRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/medicaments" element={<Medications />} />
-              <Route path="/pharmacies" element={<Pharmacies />} />
-              <Route path="/pharmacies/:id" element={<PharmacyDetail />} />
-              <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><Admin /></ProtectedRoute>} />
-               <Route path="/login" element={<Login />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </HashRouter>
-      </PharmaProvider>
-    </TooltipProvider>
+        <AuthProvider>
+          <PharmaProvider>
+            <HashRouter>
+              <Routes>
+               <Route element={<Layout />}>
+                 <Route path="/" element={<Index />} />
+                 <Route path="/medicaments" element={<Medications />} />
+                 <Route path="/pharmacies" element={<Pharmacies />} />
+                 <Route path="/pharmacies/:id" element={<PharmacyDetail />} />
+                 <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><Admin /></ProtectedRoute>} />
+                 <Route path="/login" element={<Login />} />
+                 <Route path="*" element={<NotFound />} />
+               </Route>
+              </Routes>
+            </HashRouter>
+          </PharmaProvider>
+        </AuthProvider>
+      </TooltipProvider>
   </QueryClientProvider>
 );
 
