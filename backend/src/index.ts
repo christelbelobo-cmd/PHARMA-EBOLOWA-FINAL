@@ -9,6 +9,9 @@ import { Pharmacy } from './models/Pharmacy.entity';
 import { Medication } from './models/Medication.entity';
 import { StockEntry, AvailabilityStatus } from './models/StockEntry.entity'; // Import StockEntry and its enum
 import { buildSeedStock } from './utils/seed-data'; // Import from backend's utils
+import { findUserByUsername, USERS } from './users';
+import { signToken, authenticate, authorizePharmacistOrAdminForPharmacy } from './auth';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -75,6 +78,17 @@ AppDataSource.initialize()
       res.send('Backend API is running!');
     });
 
+    app.post('/api/login', async (req, res) => {
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ message: 'username + password required' });
+      const user = findUserByUsername(username);
+      if (!user) return res.status(401).json({ message: 'invalid credentials' });
+      const ok = await bcrypt.compare(password, user.passwordHash);
+      if (!ok) return res.status(401).json({ message: 'invalid credentials' });
+      const token = signToken({ username: user.username, role: user.role, pharmacyId: user.pharmacyId });
+      return res.json({ token, user: { username: user.username, role: user.role, pharmacyId: user.pharmacyId } });
+    });
+
     app.get('/api/pharmacies', async (req, res) => {
       const pharmacies = await pharmacyRepository.find();
       res.json(pharmacies);
@@ -90,7 +104,8 @@ AppDataSource.initialize()
       res.json(stock);
     });
 
-    app.patch('/api/stock/:medId/:pharmacyId', async (req, res) => {
+    // Protected update: admin can update any, pharmacist only own pharmacy
+    app.patch('/api/stock/:medId/:pharmacyId', authenticate, authorizePharmacistOrAdminForPharmacy('pharmacyId'), async (req, res) => {
       const { medId, pharmacyId } = req.params;
       const { status, price } = req.body;
 
