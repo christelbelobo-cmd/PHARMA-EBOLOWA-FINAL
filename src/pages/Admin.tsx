@@ -16,6 +16,8 @@ import { MEDICATIONS } from "@/data/medications";
 import { usePharma } from "@/store/PharmaStore";
 import { AvailabilityStatus } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER, formatDate } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
@@ -24,6 +26,8 @@ function normalize(s: string): string {
 const Admin = () => {
   const { state, updateEntry, setDutyPharmacy, resetData } = usePharma();
   const { toast } = useToast();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [pharmacyId, setPharmacyId] = useState(PHARMACIES[0].id);
   const [query, setQuery] = useState("");
 
@@ -80,15 +84,28 @@ const Admin = () => {
             Mettez à jour les disponibilités et la pharmacie de garde.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            resetData();
-            toast({ title: "Données réinitialisées", description: "Les données de démonstration ont été restaurées." });
-          }}
-        >
-          <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              resetData();
+              toast({ title: "Données réinitialisées", description: "Les données de démonstration ont été restaurées." });
+            }}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => {
+              logout();
+              toast({ title: "Déconnecté", description: "Vous avez été déconnecté." });
+              navigate('/');
+            }}
+          >
+            Se déconnecter
+          </Button>
+        </div>
       </div>
 
       <Card className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
