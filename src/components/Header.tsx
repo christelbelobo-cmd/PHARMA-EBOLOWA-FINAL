@@ -2,16 +2,19 @@ import { Link, NavLink } from "react-router-dom";
 import { Cross, Menu } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
-const NAV = [
-  { to: "/", label: "Accueil", end: true },
-  { to: "/medicaments", label: "Médicaments" },
-  { to: "/pharmacies", label: "Pharmacies" },
-  { to: "/admin", label: "Admin" },
-];
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const { role } = useAuth();
+
+  const NAV_BASE = [
+    { to: "/", label: "Accueil", end: true },
+    { to: "/medicaments", label: "Médicaments" },
+    { to: "/pharmacies", label: "Pharmacies" },
+  ];
+
+  const NAV = (role === "admin" || role === "pharmacist") ? [...NAV_BASE, { to: "/admin", label: "Admin" }] : NAV_BASE;
 
   return (
     <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">

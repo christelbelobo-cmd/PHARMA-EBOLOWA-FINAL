@@ -3,15 +3,21 @@ import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PharmacyCard } from "@/components/PharmacyCard";
-import { PHARMACIES } from "@/data/pharmacies";
-import { MEDICATIONS } from "@/data/medications";
 import { usePharma } from "@/store/PharmaStore";
-import { normalize } from "@/lib/format"; // Assurez-vous que normalize est exporté de lib/format
+import { normalize } from "@/lib/format";
+import { usePharmacies } from "@/hooks/usePharmacies";
+import { useMedications } from "@/hooks/useMedications";
 
 const Pharmacies = () => {
   const [params, setParams] = useSearchParams();
   const { state } = usePharma();
   const [query, setQuery] = useState(params.get("q") ?? "");
+
+  const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
+  const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
+
+  const isLoading = isLoadingPharmacies || isLoadingMedications;
+  const isError = isErrorPharmacies || isErrorMedications;
 
   useEffect(() => {
     const next = new URLSearchParams(params);
@@ -22,27 +28,37 @@ const Pharmacies = () => {
   }, [query]);
 
   const filteredPharmacies = useMemo(() => {
+    if (isLoading || isError || !pharmacies) return [];
     const q = normalize(query.trim());
-    return PHARMACIES.filter((ph) => {
+    return pharmacies.filter((ph) => {
       if (q && !normalize(`${ph.name} ${ph.address} ${ph.city}`).includes(q)) {
         return false;
       }
       return true;
     });
-  }, [query]);
+  }, [query, pharmacies, isLoading, isError]);
 
   const counts = useMemo(() => {
+    if (isLoading || isError || !pharmacies || !medications) return {};
     const c: Record<string, number> = {};
-    for (const ph of PHARMACIES) c[ph.id] = 0; // Initialize counts for all pharmacies
-    for (const med of MEDICATIONS) {
-      for (const ph of PHARMACIES) {
+    for (const ph of pharmacies) c[ph.id] = 0; // Initialize counts for all pharmacies
+    for (const med of medications) {
+      for (const ph of pharmacies) {
         const entry = state.stock[med.id]?.[ph.id];
         if (entry && (entry.status === "available" || entry.status === "low"))
           c[ph.id] += 1;
       }
     }
     return c;
-  }, [state.stock]);
+  }, [state.stock, pharmacies, medications, isLoading, isError]);
+
+  if (isLoading) {
+    return <div>Chargement des pharmacies...</div>;
+  }
+
+  if (isError) {
+    return <div>Erreur lors du chargement des pharmacies.</div>;
+  }
 
   return (
     <div className="space-y-6">

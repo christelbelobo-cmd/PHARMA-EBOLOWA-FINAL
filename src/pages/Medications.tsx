@@ -11,11 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
-import { MEDICATIONS } from "@/data/medications";
-import { PHARMACIES } from "@/data/pharmacies";
 import { usePharma } from "@/store/PharmaStore";
 import { AvailabilityStatus, MedicationCategory } from "@/types";
 import { formatPrice, STATUS_ORDER } from "@/lib/format";
+import { useMedications } from "@/hooks/useMedications";
+import { usePharmacies } from "@/hooks/usePharmacies";
 
 const CATEGORIES: (MedicationCategory | "all")[] = [
   "all",
@@ -50,6 +50,12 @@ const Medications = () => {
     (params.get("availability") as "all" | "available_at_least_one") ?? "all"
   );
 
+  const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
+  const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
+
+  const isLoading = isLoadingMedications || isLoadingPharmacies;
+  const isError = isErrorMedications || isErrorPharmacies;
+
   const AVAILABILITY_FILTERS = [
     { value: "all", label: "Tous les statuts" },
     { value: "available_at_least_one", label: "Disponibles (au moins 1 pharmacie)" },
@@ -68,14 +74,15 @@ const Medications = () => {
   }, [query, category, availabilityFilter]);
 
   const results = useMemo(() => {
+    if (isLoading || isError || !medications || !pharmacies) return [];
     const q = normalize(query.trim());
-    return MEDICATIONS.filter((m) => {
+    return medications.filter((m) => {
       if (category !== "all" && m.category !== category) return false;
       if (q && !normalize(`${m.name} ${m.dci} ${m.category}`).includes(q))
         return false;
       return true;
     }).map((m) => {
-      const byStatus = PHARMACIES.map((ph) => ({
+      const byStatus = pharmacies.map((ph) => ({
         pharmacy: ph,
         entry: state.stock[m.id]?.[ph.id],
       }));
@@ -93,7 +100,15 @@ const Medications = () => {
       if (availabilityFilter === "available_at_least_one" && r.availableCount === 0) return false;
       return true;
     });
-  }, [query, category, availabilityFilter, state.stock]);
+  }, [query, category, availabilityFilter, state.stock, medications, pharmacies, isLoading, isError]);
+
+  if (isLoading) {
+    return <div>Chargement des médicaments...</div>;
+  }
+
+  if (isError) {
+    return <div>Erreur lors du chargement des médicaments.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -157,7 +172,7 @@ const Medications = () => {
               </div>
               <span className="text-sm">
                 <span className="font-semibold text-success">{availableCount}</span>
-                <span className="text-muted-foreground"> / {PHARMACIES.length} pharmacies</span>
+                <span className="text-muted-foreground"> / {pharmacies?.length || 0} pharmacies</span>
               </span>
             </div>
 

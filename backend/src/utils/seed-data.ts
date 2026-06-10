@@ -1,4 +1,17 @@
-import { AppState, AvailabilityStatus, StockEntry, StockMap, Medication, Pharmacy } from "@/types";
+import { Medication } from "../models/Medication.entity";
+import { Pharmacy } from "../models/Pharmacy.entity";
+import { StockEntry, AvailabilityStatus } from "../models/StockEntry.entity"; // Import StockEntry and its enum
+
+// Define StockMap type for internal use in seeding
+interface StockMap {
+  [medicationId: string]: {
+    [pharmacyId: string]: {
+      status: AvailabilityStatus;
+      price: number | null;
+      updatedAt: string;
+    };
+  };
+}
 
 // Petit générateur pseudo-aléatoire déterministe pour des données de démo stables.
 function hashSeed(str: string): number {
@@ -11,10 +24,10 @@ function hashSeed(str: string): number {
 }
 
 function statusFromSeed(seed: number): AvailabilityStatus {
-  if (seed < 0.6) return "available";
-  if (seed < 0.78) return "low";
-  if (seed < 0.9) return "on_order";
-  return "out";
+  if (seed < 0.6) return AvailabilityStatus.AVAILABLE;
+  if (seed < 0.78) return AvailabilityStatus.LOW;
+  if (seed < 0.9) return AvailabilityStatus.ON_ORDER;
+  return AvailabilityStatus.OUT;
 }
 
 // Prix indicatifs en FCFA, par catégorie.
@@ -31,20 +44,13 @@ export function buildSeedStock(medications: Medication[], pharmacies: Pharmacy[]
     for (const ph of pharmacies) {
       const seed = hashSeed(`${med.id}:${ph.id}`);
       const status = statusFromSeed(seed);
-      const entry: StockEntry = {
+      const entry = {
         status,
-        price: status === "out" ? null : priceFor(med.id, seed),
+        price: status === AvailabilityStatus.OUT ? null : priceFor(med.id, seed),
         updatedAt,
       };
       stock[med.id][ph.id] = entry;
     }
   }
   return stock;
-}
-
-export function buildInitialState(medications: Medication[], pharmacies: Pharmacy[]): AppState {
-  return {
-    dutyPharmacyId: pharmacies[0]?.id || "", // Default to the first pharmacy or empty
-    stock: buildSeedStock(medications, pharmacies),
-  };
 }

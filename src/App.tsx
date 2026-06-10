@@ -10,6 +10,7 @@ import Medications from "./pages/Medications";
 import Pharmacies from "./pages/Pharmacies";
 import PharmacyDetail from "./pages/PharmacyDetail";
 import Admin from "./pages/Admin";
+import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,7 +28,7 @@ const App = () => (
               <Route path="/medicaments" element={<Medications />} />
               <Route path="/pharmacies" element={<Pharmacies />} />
               <Route path="/pharmacies/:id" element={<PharmacyDetail />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><Admin /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
