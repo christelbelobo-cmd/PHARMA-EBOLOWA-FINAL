@@ -26,7 +26,16 @@ const PharmacyDetail = () => {
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
 
-  const { role, pharmacyId: authPharmacyId } = useAuth();
+  const { role, pharmacyId: authPharmacyId, logout } = useAuth();
+
+  // When pharmacist leaves their pharmacy page, revert to regular user
+  useEffect(() => {
+    return () => {
+      if (role === "pharmacist" && authPharmacyId === id) {
+        logout();
+      }
+    };
+  }, [role, authPharmacyId, id, logout]);
 
   const isLoading = isLoadingPharmacies || isLoadingMedications;
   const isError = isErrorPharmacies || isErrorMedications;
