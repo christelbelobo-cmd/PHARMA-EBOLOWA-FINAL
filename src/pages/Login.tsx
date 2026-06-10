@@ -17,21 +17,38 @@ const Login = () => {
   const { loginAs } = useAuth();
   const { data: pharmacies } = usePharmacies();
   const [role, setRole] = useState<"admin" | "pharmacist">("pharmacist");
-  const [pharmacyId, setPharmacyId] = useState(pharmacies?.[0]?.id ?? "");
+  const [pharmacyId, setPharmacyId] = useState("");
   const [password, setPassword] = useState("");
 
-  function submit(e: React.FormEvent) {
+  // when pharmacies load, default to first if none selected
+  useEffect(() => {
+    if (pharmacies && pharmacies.length > 0 && !pharmacyId) {
+      setPharmacyId(pharmacies[0].id);
+    }
+  }, [pharmacies, pharmacyId]);
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (role === "admin") {
-      if (password !== "admin") return alert("Mot de passe administrateur incorrect");
-      loginAs("admin");
-      navigate("/admin");
-    } else {
-      if (!pharmacyId) return alert("Sélectionnez votre pharmacie");
-      // Pharmacy password equals pharmacy id
-      if (password !== pharmacyId) return alert("Mot de passe pharmacie incorrect");
-      loginAs("pharmacist", pharmacyId);
-      navigate(`/pharmacies/${pharmacyId}`);
+    // Call backend login
+    try {
+      const username = role === 'admin' ? 'admin' : pharmacyId;
+      const res = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return alert(err.message || 'Échec de la connexion');
+      }
+      const data = await res.json();
+      const user = data.user;
+      const token = data.token;
+      loginAs(user.role, user.pharmacyId ?? undefined, token);
+      if (user.role === 'admin') navigate('/admin');
+      else navigate(`/pharmacies/${user.pharmacyId}`);
+    } catch (e) {
+      alert('Erreur réseau lors de la connexion');
+      console.error(e);
     }
   }
 
