@@ -18,14 +18,18 @@ const Login = () => {
   const { data: pharmacies } = usePharmacies();
   const [role, setRole] = useState<"admin" | "pharmacist">("pharmacist");
   const [pharmacyId, setPharmacyId] = useState(pharmacies?.[0]?.id ?? "");
+  const [password, setPassword] = useState("");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (role === "admin") {
+      if (password !== "admin") return alert("Mot de passe administrateur incorrect");
       loginAs("admin");
       navigate("/admin");
     } else {
       if (!pharmacyId) return alert("Sélectionnez votre pharmacie");
+      // Pharmacy password equals pharmacy id
+      if (password !== pharmacyId) return alert("Mot de passe pharmacie incorrect");
       loginAs("pharmacist", pharmacyId);
       navigate(`/pharmacies/${pharmacyId}`);
     }
@@ -67,6 +71,11 @@ const Login = () => {
             </Select>
           </div>
         )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Mot de passe</label>
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="h-11" />
+        </div>
 
         <div className="md:col-span-2">
           <Button type="submit">Se connecter</Button>
