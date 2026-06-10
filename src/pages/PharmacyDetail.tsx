@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { MapPin, Phone, Clock, ShieldCheck, ArrowLeft, Search, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
