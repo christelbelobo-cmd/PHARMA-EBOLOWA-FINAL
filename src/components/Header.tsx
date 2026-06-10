@@ -47,6 +47,11 @@ export function Header() {
               {item.label}
             </NavLink>
           ))}
+
+          {/* Login button placed next to navigation */}
+          <Link to="/login" className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground">
+            Se connecter
+          </Link>
         </nav>
 
         <button
@@ -79,6 +84,9 @@ export function Header() {
                 {item.label}
               </NavLink>
             ))}
+            <Link to="/login" onClick={() => setOpen(false)} className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary/60">
+              Se connecter
+            </Link>
           </div>
         </nav>
       )}

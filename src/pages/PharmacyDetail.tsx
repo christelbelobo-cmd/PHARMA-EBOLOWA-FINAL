@@ -11,19 +11,22 @@ import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
 import MAPS_URLS from "@/data/mapsUrls";
 import MAPS_METADATA from "@/data/mapsMetadata";
+import { useAuth } from "@/hooks/useAuth";
 
 // Fonction de normalisation pour les recherches
 const normalize = (s: string): string => {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
 };
 
 const PharmacyDetail = () => {
   const { id = "" } = useParams();
-  const { state } = usePharma();
+  const { state, updateEntry } = usePharma();
   const [query, setQuery] = useState("");
 
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
+
+  const { role, pharmacyId: authPharmacyId } = useAuth();
 
   const isLoading = isLoadingPharmacies || isLoadingMedications;
   const isError = isErrorPharmacies || isErrorMedications;
@@ -89,6 +92,48 @@ const PharmacyDetail = () => {
   const displayHours = meta?.hours ?? pharmacy.hours;
   const displayAddress = meta?.address ?? pharmacy.address;
 
+  // Upload handler for pharmacist (upload CSV or JSON)
+  async function handleFile(file?: File) {
+    if (!file || !medications) return;
+    const text = await file.text();
+    let rows: any[] = [];
+    try {
+      if (file.name.endsWith(".json")) {
+        rows = JSON.parse(text);
+      } else {
+        // simple CSV parser: expect header with id,name,status,price
+        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const header = lines.shift()?.split(",").map((h) => h.trim().toLowerCase()) || [];
+        for (const line of lines) {
+          const cols = line.split(",").map((c) => c.trim());
+          const obj: any = {};
+          header.forEach((h, i) => (obj[h] = cols[i]));
+          rows.push(obj);
+        }
+      }
+    } catch (e) {
+      alert("Format de fichier invalide");
+      return;
+    }
+
+    // Apply updates
+    for (const r of rows) {
+      // try by id first
+      let med = medications.find((m) => m.id === r.id || m.id === r.medId);
+      if (!med && r.name) {
+        const n = r.name.toString().toLowerCase();
+        med = medications.find((m) => m.name.toLowerCase() === n || m.dci?.toLowerCase() === n);
+      }
+      if (!med) continue;
+      const status = (r.status || r.availability || "out") as any;
+      const price = r.price === undefined || r.price === null || r.price === "" ? null : Number(r.price);
+      updateEntry(med.id, pharmacy.id, { status, price });
+    }
+
+    alert("Import terminé");
+  }
+
+  const canUpload = role === "pharmacist" && authPharmacyId === pharmacy.id;
 
   return (
     <div className="space-y-6">
@@ -138,6 +183,18 @@ const PharmacyDetail = () => {
           </a>
         </div>
       </Card>
+
+      {canUpload && (
+        <Card className="p-4">
+          <h3 className="mb-2 font-medium">Importer un fichier de stock</h3>
+          <p className="text-xs text-muted-foreground mb-3">Format accepté : CSV (id,name,status,price) ou JSON (array d'objets avec id/name/status/price)</p>
+          <input
+            type="file"
+            accept=".csv,.json"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+          />
+        </Card>
+      )}
 
       <div>
         <h2 className="mb-3 text-xl font-bold">Disponibilité des médicaments</h2>

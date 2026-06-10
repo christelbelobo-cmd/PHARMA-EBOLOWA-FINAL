@@ -18,7 +18,7 @@ import { AvailabilityStatus } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER, formatDate } from "@/lib/format";
 
 function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
 }
 
 const Admin = () => {
@@ -33,6 +33,43 @@ const Admin = () => {
       q ? normalize(`${m.name} ${m.dci} ${m.category}`).includes(q) : true
     );
   }, [query]);
+
+  // Admin import handler (same format as pharmacist)
+  async function handleFile(file?: File) {
+    if (!file) return alert("Sélectionnez un fichier");
+    const text = await file.text();
+    let rows: any[] = [];
+    try {
+      if (file.name.endsWith(".json")) {
+        rows = JSON.parse(text);
+      } else {
+        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const header = lines.shift()?.split(",").map((h) => h.trim().toLowerCase()) || [];
+        for (const line of lines) {
+          const cols = line.split(",").map((c) => c.trim());
+          const obj: any = {};
+          header.forEach((h, i) => (obj[h] = cols[i]));
+          rows.push(obj);
+        }
+      }
+    } catch (e) {
+      return alert("Format de fichier invalide");
+    }
+
+    for (const r of rows) {
+      let med = MEDICATIONS.find((m) => m.id === r.id || m.id === r.medId);
+      if (!med && r.name) {
+        const n = r.name.toString().toLowerCase();
+        med = MEDICATIONS.find((m) => m.name.toLowerCase() === n || m.dci?.toLowerCase() === n);
+      }
+      if (!med) continue;
+      const status = (r.status || r.availability || "out") as any;
+      const price = r.price === undefined || r.price === null || r.price === "" ? null : Number(r.price);
+      updateEntry(med.id, pharmacyId, { status, price });
+    }
+
+    toast({ title: "Import terminé" });
+  }
 
   return (
     <div className="space-y-6">
@@ -84,6 +121,12 @@ const Admin = () => {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium">Importer un fichier</label>
+          <input type="file" accept=".csv,.json" onChange={(e) => handleFile(e.target.files?.[0])} />
+          <p className="text-xs text-muted-foreground mt-1">Format CSV (id,name,status,price) ou JSON (array d'objets)</p>
         </div>
       </Card>
 
