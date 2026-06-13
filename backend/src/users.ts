@@ -8,19 +8,13 @@ export type User = {
   pharmacyId?: string | null;
 };
 
-const plainUsers: Array<{ username: string; password: string; role: 'admin' | 'pharmacist'; pharmacyId?: string }> = [
-  { username: 'admin', password: 'admin', role: 'admin' },
-  // pharmacists: username = pharmacy id, password = pharmacy id
-  ...PHARMACIES.map((p) => ({ username: p.id, password: p.id, role: 'pharmacist', pharmacyId: p.id })),
-];
+// Static users are now migrated to the database.
+export const USERS: User[] = [];
 
-export const USERS: User[] = plainUsers.map((u) => ({
-  username: u.username,
-  passwordHash: bcrypt.hashSync(u.password, 10),
-  role: u.role,
-  pharmacyId: u.pharmacyId ?? null,
-}));
+import { AppDataSource } from './data-source';
+import { User as UserEntity } from './models/User.entity';
 
-export function findUserByUsername(username: string) {
-  return USERS.find((u) => u.username === username);
+export async function findUserByUsername(username: string) {
+  const userRepository = AppDataSource.getRepository(UserEntity);
+  return await userRepository.findOneBy({ username });
 }

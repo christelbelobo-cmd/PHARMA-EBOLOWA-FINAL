@@ -26,15 +26,15 @@ export class StockEntry {
   pharmacy!: Pharmacy;
 
   @Column({
-    type: "text",
-    enum: [AvailabilityStatus.AVAILABLE, AvailabilityStatus.LOW, AvailabilityStatus.ON_ORDER, AvailabilityStatus.OUT],
+    type: "enum",
+    enum: AvailabilityStatus,
     default: AvailabilityStatus.OUT,
   })
   status!: AvailabilityStatus;
 
-  @Column({ type: "real", nullable: true })
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
   price!: number | null;
 
-  @Column({ type: "datetime" })
-  updatedAt!: string;
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  updatedAt!: Date;
 }

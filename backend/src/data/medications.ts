@@ -1,4 +1,4 @@
-import { Medication } from "../models/medication.model";
+import { Medication } from "../models/Medication.entity";
 
 export const MEDICATIONS: Medication[] = [
   { id: "paracetamol-500", name: "Paracétamol 500 mg", dci: "Paracétamol", form: "Comprimé", category: "Antalgique" },

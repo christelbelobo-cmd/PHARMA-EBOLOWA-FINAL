@@ -9,7 +9,7 @@ import { Pharmacy } from './models/Pharmacy.entity';
 import { Medication } from './models/Medication.entity';
 import { StockEntry, AvailabilityStatus } from './models/StockEntry.entity'; // Import StockEntry and its enum
 import { buildSeedStock } from './utils/seed-data'; // Import from backend's utils
-import { findUserByUsername, USERS } from './users';
+import { findUserByUsername } from './users';
 import { signToken, authenticate, authorizePharmacistOrAdminForPharmacy } from './auth';
 import bcrypt from 'bcryptjs';
 
@@ -42,7 +42,8 @@ AppDataSource.initialize()
 
     try {
       const stockCountResult = await AppDataSource.query(`SELECT COUNT(*) FROM stock_entry`);
-      if (parseInt(stockCountResult[0]["COUNT(*)"], 10) === 0) {
+      const count = parseInt(stockCountResult[0].count || stockCountResult[0]["COUNT(*)"], 10);
+      if (count === 0) {
         const initialStockMap = buildSeedStock(staticMedications, staticPharmacies);
         const stockEntriesToSave: StockEntry[] = [];
 
@@ -56,7 +57,7 @@ AppDataSource.initialize()
               pharmacy: { id: pharmacyId } as Pharmacy,
               status: entry.status,
               price: entry.price,
-              updatedAt: entry.updatedAt,
+              updatedAt: new Date(entry.updatedAt),
             });
           }
         }
@@ -81,7 +82,7 @@ AppDataSource.initialize()
     app.post('/api/login', async (req, res) => {
       const { username, password } = req.body;
       if (!username || !password) return res.status(400).json({ message: 'username + password required' });
-      const user = findUserByUsername(username);
+      const user = await findUserByUsername(username);
       if (!user) return res.status(401).json({ message: 'invalid credentials' });
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (!ok) return res.status(401).json({ message: 'invalid credentials' });
@@ -109,7 +110,7 @@ AppDataSource.initialize()
       const { medId, pharmacyId } = req.params;
       const { status, price } = req.body;
 
-      const stockEntry = await stockEntryRepository.findOne({ where: { medicationId: medId, pharmacyId: pharmacyId } });
+      const stockEntry = await stockEntryRepository.findOne({ where: { medicationId: medId as string, pharmacyId: pharmacyId as string } });
 
       if (!stockEntry) {
         return res.status(404).json({ message: "Stock entry not found" });
@@ -117,7 +118,7 @@ AppDataSource.initialize()
 
       stockEntry.status = status as AvailabilityStatus;
       stockEntry.price = price;
-      stockEntry.updatedAt = new Date().toISOString();
+      stockEntry.updatedAt = new Date();
 
       await stockEntryRepository.save(stockEntry);
       res.json(stockEntry);
@@ -127,7 +128,7 @@ AppDataSource.initialize()
     app.patch('/api/pharmacies/:id', authenticate, authorizePharmacistOrAdminForPharmacy('id'), async (req, res) => {
       const { id } = req.params;
       const { name, address, phone, hours, quartier, lat, lng, mapsUrl } = req.body;
-      const pharmacy = await pharmacyRepository.findOne({ where: { id } });
+      const pharmacy = await pharmacyRepository.findOne({ where: { id: id as string } });
       if (!pharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
 
       if (name !== undefined) pharmacy.name = name;

@@ -1,4 +1,4 @@
-import { Pharmacy } from "../models/pharmacy.model";
+import { Pharmacy } from "../models/Pharmacy.entity";
 
 // Coordonnées approximatives autour d'Ebolowa (Sud Cameroun).
 // Les adresses et numéros sont illustratifs et doivent être confirmés.

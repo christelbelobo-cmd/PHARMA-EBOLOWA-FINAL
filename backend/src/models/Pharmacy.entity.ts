@@ -20,9 +20,9 @@ export class Pharmacy {
   @Column()
   hours!: string;
 
-  @Column("real") // Use "real" for floating-point numbers in SQLite
+  @Column("decimal", { precision: 10, scale: 7 })
   lat!: number;
 
-  @Column("real") // Use "real" for floating-point numbers in SQLite
+  @Column("decimal", { precision: 10, scale: 7 })
   lng!: number;
 }
