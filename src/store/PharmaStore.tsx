@@ -83,13 +83,37 @@ export function PharmaProvider({ children }: { children: React.ReactNode }) {
             ...patch,
             updatedAt: new Date().toISOString(),
           };
-          return {
+
+          // optimistic local update
+          const nextState = {
             ...prev,
             stock: {
               ...prev.stock,
               [medId]: { ...prev.stock[medId], [pharmacyId]: nextEntry },
             },
           };
+
+          // attempt to sync with backend if token is present
+          try {
+            const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+            if (token) {
+              // send patch (no await - fire and forget)
+              fetch(`http://localhost:5000/api/stock/${encodeURIComponent(medId)}/${encodeURIComponent(pharmacyId)}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ status: nextEntry.status, price: nextEntry.price }),
+              }).then((res) => {
+                if (!res.ok) console.error('Failed to sync stock update', res.statusText);
+              }).catch((err) => console.error('Network error syncing stock update', err));
+            }
+          } catch (e) {
+            console.error('Error while attempting to sync update', e);
+          }
+
+          return nextState;
         }),
       setDutyPharmacy: (pharmacyId) =>
         setState((prev) => (prev ? { ...prev, dutyPharmacyId: pharmacyId } : null)),

@@ -3,26 +3,27 @@ import { Entity, PrimaryColumn, Column } from "typeorm";
 @Entity()
 export class Pharmacy {
   @PrimaryColumn()
-  id!: string;
+  id: string;
 
   @Column()
-  name!: string;
+  name: string;
 
   @Column()
-  quartier!: string;
+  quartier: string;
 
   @Column()
-  address!: string;
+  address: string;
 
   @Column()
-  phone!: string;
+  phone: string;
 
   @Column()
-  hours!: string;
+  hours: string;
 
   @Column("decimal", { precision: 10, scale: 7 })
-  lat!: number;
+  lat: number;
 
   @Column("decimal", { precision: 10, scale: 7 })
-  lng!: number;
+  lng: number;
 }
+

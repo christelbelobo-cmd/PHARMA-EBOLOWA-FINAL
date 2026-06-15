@@ -3,17 +3,18 @@ import { Entity, PrimaryColumn, Column } from "typeorm";
 @Entity()
 export class Medication {
   @PrimaryColumn()
-  id!: string;
+  id: string;
 
   @Column()
-  name!: string;
+  name: string;
 
   @Column()
-  dci!: string;
+  dci: string;
 
   @Column()
-  form!: string;
+  form: string;
 
   @Column()
-  category!: string;
+  category: string;
 }
+

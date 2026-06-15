@@ -1,17 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { usePharmacies } from '@/hooks/usePharmacies';
 import { Search, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PHARMACIES } from "@/data/pharmacies";
 import { MEDICATIONS } from "@/data/medications";
@@ -20,10 +14,7 @@ import { AvailabilityStatus } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER, formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-
-function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
-}
+import { normalize } from '@/lib/normalize';
 
 const Admin = () => {
   const { state, updateEntry, setDutyPharmacy, resetData } = usePharma();

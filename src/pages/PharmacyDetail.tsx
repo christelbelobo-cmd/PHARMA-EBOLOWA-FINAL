@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Fonction de normalisation pour les recherches
 const normalize = (s: string): string => {
-  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
 const PharmacyDetail = () => {
@@ -27,7 +27,7 @@ const PharmacyDetail = () => {
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
 
-  const { role, pharmacyId: authPharmacyId, logout } = useAuth();
+  const { token, role, pharmacyId: authPharmacyId, logout } = useAuth();
 
   // When pharmacist leaves their pharmacy page, revert to regular user
   useEffect(() => {
@@ -102,7 +102,6 @@ const PharmacyDetail = () => {
   const displayHours = meta?.hours ?? pharmacy.hours;
   const displayAddress = meta?.address ?? pharmacy.address;
 
-  const { token, role, pharmacyId: authPharmacyId } = useAuth();
   const queryClient = useQueryClient();
 
   // Edit mode for pharmacist
@@ -140,7 +139,8 @@ const PharmacyDetail = () => {
     }
   }
 
-  // Upload handler for pharmacist (upload CSV or JSON)  async function handleFile(file?: File) {
+  // Upload handler for pharmacist (upload CSV or JSON)
+  async function handleFile(file?: File) {
     if (!file || !medications) return;
     const text = await file.text();
     let rows: any[] = [];

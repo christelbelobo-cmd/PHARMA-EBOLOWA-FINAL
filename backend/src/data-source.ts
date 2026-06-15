@@ -15,7 +15,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || "pharma_user",
   password: process.env.DB_PASSWORD || "pharma_pass",
   database: process.env.DB_NAME || "pharma_ebolowa",
-  synchronize: false, // Set to false for migrations
+  synchronize: false, 
   logging: false,
   entities: [Pharmacy, Medication, StockEntry, User],
   migrations: ["src/migrations/**/*.ts"],

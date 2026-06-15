@@ -1,14 +1,13 @@
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User } from './users';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-export function signToken(user: Partial<User>) {
+export function signToken(user: { username: string; role: string; pharmacyId?: string | null }) {
   const payload = {
     sub: user.username,
     role: user.role,
-    pharmacyId: (user as any).pharmacyId || null,
+    pharmacyId: user.pharmacyId || null,
   };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
@@ -27,17 +26,20 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 }
 
 export function authorizeAdmin(req: Request, res: Response, next: NextFunction) {
-  const user = (req as any).user as any;
+  const user = (req as any).user;
   if (!user || user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   return next();
 }
 
 export function authorizePharmacistOrAdminForPharmacy(pharmacyIdParam = 'pharmacyId') {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user as any;
+    const user = (req as any).user;
     if (!user) return res.status(401).json({ message: 'Missing user' });
     if (user.role === 'admin') return next();
     if (user.role === 'pharmacist' && user.pharmacyId === req.params[pharmacyIdParam]) return next();
     return res.status(403).json({ message: 'Forbidden' });
   };
 }
+
+
+
