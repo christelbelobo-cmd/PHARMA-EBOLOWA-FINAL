@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, pharmacies, medications, stockEntries, Pharmacy, Medication, StockEntry, InsertPharmacy, InsertMedication, InsertStockEntry } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,85 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Pharmacy queries
+export async function getPharmacies(): Promise<Pharmacy[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(pharmacies);
+}
+
+export async function getPharmacyById(id: number): Promise<Pharmacy | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(pharmacies).where(eq(pharmacies.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updatePharmacy(id: number, data: Partial<InsertPharmacy>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(pharmacies).set(data).where(eq(pharmacies.id, id));
+}
+
+export async function setDutyPharmacy(pharmacyId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(pharmacies).set({ isOnDuty: false });
+  await db.update(pharmacies).set({ isOnDuty: true }).where(eq(pharmacies.id, pharmacyId));
+}
+
+// Medication queries
+export async function getMedications(): Promise<Medication[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(medications);
+}
+
+export async function getMedicationById(id: number): Promise<Medication | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(medications).where(eq(medications.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Stock queries
+export async function getStockEntries(): Promise<StockEntry[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(stockEntries);
+}
+
+export async function getStockEntry(medicationId: number, pharmacyId: number): Promise<StockEntry | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(stockEntries).where(
+    and(
+      eq(stockEntries.medicationId, medicationId),
+      eq(stockEntries.pharmacyId, pharmacyId)
+    )
+  ).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateStockEntry(medicationId: number, pharmacyId: number, data: Partial<InsertStockEntry>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(stockEntries).set(data).where(
+    and(
+      eq(stockEntries.medicationId, medicationId),
+      eq(stockEntries.pharmacyId, pharmacyId)
+    )
+  );
+}
+
+export async function getStockByPharmacy(pharmacyId: number): Promise<StockEntry[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(stockEntries).where(eq(stockEntries.pharmacyId, pharmacyId));
+}
+
+export async function getStockByMedication(medicationId: number): Promise<StockEntry[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(stockEntries).where(eq(stockEntries.medicationId, medicationId));
+}
