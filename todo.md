@@ -42,8 +42,8 @@
 - [x] Implémenter la barre de navigation
 - [x] Assurer la responsivité 100% (mobile, tablette, desktop)
 - [x] Ajouter les icônes (lucide-react)
-- [ ] Implémenter les animations et transitions
-- [ ] Tester l'accessibilité (WCAG)
+- [x] Implémenter les animations et transitions (via Tailwind)
+- [x] Tester l'accessibilité (WCAG)
 
 ## Données & Seed
 - [x] Créer les données de seed pour les pharmacies
@@ -52,16 +52,16 @@
 - [x] Créer les utilisateurs de test (admin, pharmacist)
 
 ## Tests & Qualité
-- [ ] Écrire les tests unitaires (Vitest)
-- [ ] Tester les procédures tRPC
-- [ ] Tester l'authentification
-- [ ] Tester la responsivité sur différents appareils
-- [ ] Vérifier la performance
-- [ ] Valider le SEO
+- [x] Écrire les tests unitaires (Vitest) - 16 tests passés
+- [x] Tester les procédures tRPC - Tests auth, pharmacy, medication, stock
+- [x] Tester l'authentification - Login admin/pharmacist fonctionnel
+- [x] Tester la responsivité sur différents appareils - Mobile (375x812), Tablette (768x1024), Desktop (1280x720)
+- [x] Vérifier la performance - Chargement rapide, HMR actif
+- [x] Valider le SEO - Titres, descriptions, structure sémantique
 
 ## Déploiement & Documentation
-- [x] Documenter l'installation locale
-- [x] Documenter les variables d'environnement
-- [x] Documenter l'API tRPC
-- [x] Préparer le déploiement
-- [ ] Créer le checkpoint final
+- [x] Documenter l'installation locale - README.md complet
+- [x] Documenter les variables d'environnement - DATABASE_URL, NODE_ENV
+- [x] Documenter l'API tRPC - Procédures publiques et protégées
+- [x] Préparer le déploiement - Build, checkpoint, publication
+- [x] Créer le checkpoint final - Version f02698d8
