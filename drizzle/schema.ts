@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, foreignKey } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, foreignKey, real } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -36,8 +36,10 @@ export const pharmacies = mysqlTable("pharmacies", {
   address: text("address").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
   email: varchar("email", { length: 320 }),
-  openingHours: text("openingHours"), // JSON string with hours
+  openingHours: text("openingHours"),
   mapLink: text("mapLink"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   isOnDuty: boolean("isOnDuty").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Search, MapPin, Phone, Clock } from "lucide-react";
+import { Search, MapPin, Phone, Clock, Map } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 const statusConfig = {
@@ -223,7 +223,20 @@ export default function Home() {
       {!searchQuery.trim() && (
         <section className="max-w-7xl mx-auto px-4 py-12">
           <h3 className="text-2xl font-bold text-gray-900 mb-6">Accès rapide</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link href="/pharmacies/map">
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center gap-2 mb-2">
+                  <Map className="w-6 h-6 text-indigo-600" />
+                  <h4 className="text-xl font-bold text-gray-900">
+                    Pharmacies sur la carte
+                  </h4>
+                </div>
+                <p className="text-gray-600">
+                  Trouvez les pharmacies à proximité avec localisation GPS
+                </p>
+              </Card>
+            </Link>
             <Link href="/pharmacies">
               <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
                 <h4 className="text-xl font-bold text-gray-900 mb-2">

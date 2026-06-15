@@ -65,3 +65,17 @@
 - [x] Documenter l'API tRPC - Procédures publiques et protégées
 - [x] Préparer le déploiement - Build, checkpoint, publication
 - [x] Créer le checkpoint final - Version f02698d8
+
+
+## Google Maps Avancée (Nouvelle Fonctionnalité)
+- [x] Configurer Google Maps API avec proxy Manus
+- [x] Ajouter composant de localisation en temps réel
+- [x] Implémenter la détection de la position de l'utilisateur
+- [x] Ajouter les marqueurs des pharmacies sur la carte
+- [x] Implémenter les itinéraires GPS (Directions API)
+- [x] Ajouter la vue Street View des pharmacies
+- [x] Implémenter le rayon de recherche (1-10 km)
+- [x] Filtrer les pharmacies par distance
+- [x] Afficher la distance jusqu'à chaque pharmacie
+- [x] Tester sur mobile et desktop
+- [x] Optimiser les performances de la carte

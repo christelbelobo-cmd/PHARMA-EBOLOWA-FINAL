@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Pharmacies from "./pages/Pharmacies";
 import PharmacyDetail from "./pages/PharmacyDetail";
+import PharmaciesMap from "./pages/PharmaciesMap";
 import Medications from "./pages/Medications";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/pharmacies" component={Pharmacies} />
+      <Route path="/pharmacies/map" component={PharmaciesMap} />
       <Route path="/pharmacies/:id" component={PharmacyDetail} />
       <Route path="/medications" component={Medications} />
       <Route path="/login" component={Login} />
