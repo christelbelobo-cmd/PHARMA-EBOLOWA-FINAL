@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { usePharmacies } from "@/hooks/usePharmacies";
+import { useToast } from "@/hooks/use-toast";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -19,6 +22,8 @@ const Login = () => {
   const [role, setRole] = useState<"admin" | "pharmacist">("pharmacist");
   const [pharmacyId, setPharmacyId] = useState("");
   const [password, setPassword] = useState("");
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   // when pharmacies load, default to first if none selected
   useEffect(() => {
@@ -26,29 +31,37 @@ const Login = () => {
       setPharmacyId(pharmacies[0].id);
     }
   }, [pharmacies, pharmacyId]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setIsLoading(true);
     // Call backend login
     try {
       const username = role === 'admin' ? 'admin' : pharmacyId;
-      const res = await fetch('http://localhost:5000/api/login', {
+      const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        return alert(err.message || 'Échec de la connexion');
+        toast({ title: 'Échec de la connexion', description: err.message || 'Identifiants invalides.', variant: 'destructive' });
+        return;
       }
       const data = await res.json();
       const user = data.user;
       const token = data.token;
       loginAs(user.role, user.pharmacyId ?? undefined, token);
+      
+      toast({ title: 'Connexion réussie', description: `Bienvenue, ${user.role === 'admin' ? 'Administrateur' : 'Pharmacien'}.` });
+      
       if (user.role === 'admin') navigate('/admin');
       else navigate(`/pharmacies/${user.pharmacyId}`);
     } catch (e) {
-      alert('Erreur réseau lors de la connexion');
+      toast({ title: 'Erreur réseau', description: 'Impossible de contacter le serveur.', variant: 'destructive' });
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -95,7 +108,9 @@ const Login = () => {
         </div>
 
         <div className="md:col-span-2">
-          <Button type="submit">Se connecter</Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Connexion en cours..." : "Se connecter"}
+          </Button>
         </div>
       </form>
     </div>

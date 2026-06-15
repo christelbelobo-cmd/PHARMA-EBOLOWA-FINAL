@@ -13,9 +13,10 @@ import {
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 import { usePharma } from "@/store/PharmaStore";
 import { AvailabilityStatus, MedicationCategory } from "@/types";
-import { formatPrice, STATUS_ORDER } from "@/lib/format";
+import { formatPrice, STATUS_ORDER, normalize } from "@/lib/format";
 import { useMedications } from "@/hooks/useMedications";
 import { usePharmacies } from "@/hooks/usePharmacies";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const CATEGORIES: (MedicationCategory | "all")[] = [
   "all",
@@ -32,13 +33,6 @@ const CATEGORIES: (MedicationCategory | "all")[] = [
   "Autre",
 ];
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 const Medications = () => {
   const [params, setParams] = useSearchParams();
   const { state } = usePharma();
@@ -49,6 +43,9 @@ const Medications = () => {
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available_at_least_one">(
     (params.get("availability") as "all" | "available_at_least_one") ?? "all"
   );
+
+  // Debounce la recherche pour éviter les calculs trop fréquents
+  const debouncedQuery = useDebounce(query, 300);
 
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
@@ -61,9 +58,10 @@ const Medications = () => {
     { value: "available_at_least_one", label: "Disponibles (au moins 1 pharmacie)" },
   ];
 
+  // Mise à jour de l'URL avec le query débouncé
   useEffect(() => {
     const next = new URLSearchParams(params);
-    if (query) next.set("q", query);
+    if (debouncedQuery) next.set("q", debouncedQuery);
     else next.delete("q");
     if (category !== "all") next.set("category", category);
     else next.delete("category");
@@ -71,11 +69,11 @@ const Medications = () => {
     else next.delete("availability");
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, category, availabilityFilter]);
+  }, [debouncedQuery, category, availabilityFilter]);
 
   const results = useMemo(() => {
     if (isLoading || isError || !medications || !pharmacies) return [];
-    const q = normalize(query.trim());
+    const q = normalize(debouncedQuery.trim());
     return medications.filter((m) => {
       if (category !== "all" && m.category !== category) return false;
       if (q && !normalize(`${m.name} ${m.dci} ${m.category}`).includes(q))
@@ -100,7 +98,7 @@ const Medications = () => {
       if (availabilityFilter === "available_at_least_one" && r.availableCount === 0) return false;
       return true;
     });
-  }, [query, category, availabilityFilter, state.stock, medications, pharmacies, isLoading, isError]);
+  }, [debouncedQuery, category, availabilityFilter, state.stock, medications, pharmacies, isLoading, isError]);
 
   if (isLoading) {
     return <div>Chargement des médicaments...</div>;

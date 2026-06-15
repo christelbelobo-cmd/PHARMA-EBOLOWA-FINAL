@@ -7,11 +7,15 @@ import { usePharma } from "@/store/PharmaStore";
 import { normalize } from "@/lib/format";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const Pharmacies = () => {
   const [params, setParams] = useSearchParams();
   const { state } = usePharma();
   const [query, setQuery] = useState(params.get("q") ?? "");
+
+  // Debounce la recherche pour éviter les calculs trop fréquents
+  const debouncedQuery = useDebounce(query, 300);
 
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
@@ -21,22 +25,23 @@ const Pharmacies = () => {
 
   useEffect(() => {
     const next = new URLSearchParams(params);
-    if (query) next.set("q", query);
+    if (debouncedQuery) next.set("q", debouncedQuery);
     else next.delete("q");
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [debouncedQuery]);
 
   const filteredPharmacies = useMemo(() => {
     if (isLoading || isError || !pharmacies) return [];
-    const q = normalize(query.trim());
+    const q = normalize(debouncedQuery.trim());
     return pharmacies.filter((ph) => {
-      if (q && !normalize(`${ph.name} ${ph.address} ${ph.city}`).includes(q)) {
+      // Correction : utiliser ph.quartier au lieu de ph.city
+      if (q && !normalize(`${ph.name} ${ph.address} ${ph.quartier}`).includes(q)) {
         return false;
       }
       return true;
     });
-  }, [query, pharmacies, isLoading, isError]);
+  }, [debouncedQuery, pharmacies, isLoading, isError]);
 
   const counts = useMemo(() => {
     if (isLoading || isError || !pharmacies || !medications) return {};

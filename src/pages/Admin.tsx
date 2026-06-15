@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { usePharmacies } from '@/hooks/usePharmacies';
-import { Search, RotateCcw } from "lucide-react";
+import { Search, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,10 @@ import { AvailabilityStatus } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER, formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { normalize } from "@/lib/format";
 
-function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
-}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const ITEMS_PER_PAGE = 20;
 
 const Admin = () => {
   const { state, updateEntry, setDutyPharmacy, resetData } = usePharma();
@@ -32,6 +32,8 @@ const Admin = () => {
   const navigate = useNavigate();
   const [pharmacyId, setPharmacyId] = useState(PHARMACIES[0].id);
   const [query, setQuery] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: pharmaciesData } = usePharmacies();
   const queryClient = useQueryClient();
@@ -42,6 +44,19 @@ const Admin = () => {
       q ? normalize(`${m.name} ${m.dci} ${m.category}`).includes(q) : true
     );
   }, [query]);
+
+  // Reset to page 1 when query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(rows.length / ITEMS_PER_PAGE);
+  const paginatedRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return rows.slice(startIndex, endIndex);
+  }, [rows, currentPage]);
 
   // form for editing pharmacy info
   const selectedPharmacy = (pharmaciesData || []).find((p) => p.id === pharmacyId);
@@ -61,32 +76,44 @@ const Admin = () => {
   const { token } = useAuth();
 
   async function savePharmacy() {
-    if (!token) return alert('Vous devez être connecté');
+    if (!token) {
+      toast({ title: 'Erreur', description: 'Vous devez être connecté pour effectuer cette action.', variant: 'destructive' });
+      return;
+    }
+    setIsUpdating(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/pharmacies/${encodeURIComponent(pharmacyId)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/pharmacies/${encodeURIComponent(pharmacyId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: editName, address: editAddress, phone: editPhone, hours: editHours }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        return alert(err.message || 'Erreur');
+        toast({ title: 'Erreur', description: err.message || 'Erreur lors de la mise à jour de la pharmacie.', variant: 'destructive' });
+        return;
       }
-      await queryClient.invalidateQueries(['pharmacies']);
-      toast({ title: 'Pharmacie mise à jour' });
+      await queryClient.invalidateQueries({ queryKey: ['pharmacies'] });
+      toast({ title: 'Succès', description: 'Pharmacie mise à jour avec succès.' });
     } catch (e) {
-      alert('Erreur réseau');
+      toast({ title: 'Erreur', description: 'Erreur réseau lors de la mise à jour de la pharmacie.', variant: 'destructive' });
+    } finally {
+      setIsUpdating(false);
     }
   }
 
   // Admin import handler (same format as pharmacist)
   async function handleFile(file?: File) {
-    if (!file) return alert("Sélectionnez un fichier");
+    if (!file) {
+      toast({ title: 'Erreur', description: 'Sélectionnez un fichier.', variant: 'destructive' });
+      return;
+    }
+    
+    setIsUpdating(true);
     const text = await file.text();
-    let rows: any[] = [];
+    let importRows: any[] = [];
     try {
       if (file.name.endsWith(".json")) {
-        rows = JSON.parse(text);
+        importRows = JSON.parse(text);
       } else {
         const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         const header = lines.shift()?.split(",").map((h) => h.trim().toLowerCase()) || [];
@@ -94,26 +121,46 @@ const Admin = () => {
           const cols = line.split(",").map((c) => c.trim());
           const obj: any = {};
           header.forEach((h, i) => (obj[h] = cols[i]));
-          rows.push(obj);
+          importRows.push(obj);
         }
       }
     } catch (e) {
-      return alert("Format de fichier invalide");
+      toast({ title: 'Erreur', description: 'Format de fichier invalide.', variant: 'destructive' });
+      setIsUpdating(false);
+      return;
     }
 
-    for (const r of rows) {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const r of importRows) {
       let med = MEDICATIONS.find((m) => m.id === r.id || m.id === r.medId);
       if (!med && r.name) {
         const n = r.name.toString().toLowerCase();
         med = MEDICATIONS.find((m) => m.name.toLowerCase() === n || m.dci?.toLowerCase() === n);
       }
-      if (!med) continue;
+      if (!med) {
+        errorCount++;
+        continue;
+      }
+      
       const status = (r.status || r.availability || "out") as any;
       const price = r.price === undefined || r.price === null || r.price === "" ? null : Number(r.price);
-      updateEntry(med.id, pharmacyId, { status, price });
+      
+      try {
+        await updateEntry(med.id, pharmacyId, { status, price });
+        successCount++;
+      } catch (error) {
+        console.error(`Erreur lors de la mise à jour de ${med.name}:`, error);
+        errorCount++;
+      }
     }
 
-    toast({ title: "Import terminé" });
+    setIsUpdating(false);
+    toast({ 
+      title: "Import terminé", 
+      description: `${successCount} médicament(s) importé(s) avec succès. ${errorCount} erreur(s).` 
+    });
   }
 
   return (
@@ -130,7 +177,7 @@ const Admin = () => {
             variant="outline"
             onClick={() => {
               resetData();
-              toast({ title: "Données réinitialisées", description: "Les données de démonstration ont été restaurées." });
+              toast({ title: "Succès", description: "Les données de démonstration ont été restaurées." });
             }}
           >
             <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
@@ -167,7 +214,12 @@ const Admin = () => {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Pharmacie de garde</label>
-          <Select value={state.dutyPharmacyId} onValueChange={(v) => { setDutyPharmacy(v); toast({ title: "Pharmacie de garde mise à jour" }); }}>
+          <Select value={state.dutyPharmacyId} onValueChange={(v) => { 
+            setDutyPharmacy(v).catch(() => {
+              toast({ title: 'Erreur', description: 'Erreur lors de la mise à jour de la pharmacie de garde.', variant: 'destructive' });
+            });
+            toast({ title: "Succès", description: "Pharmacie de garde mise à jour." }); 
+          }}>
             <SelectTrigger className="h-11">
               <SelectValue />
             </SelectTrigger>
@@ -183,7 +235,12 @@ const Admin = () => {
 
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm font-medium">Importer un fichier</label>
-          <input type="file" accept=".csv,.json" onChange={(e) => handleFile(e.target.files?.[0])} />
+          <input 
+            type="file" 
+            accept=".csv,.json" 
+            onChange={(e) => handleFile(e.target.files?.[0])}
+            disabled={isUpdating}
+          />
           <p className="text-xs text-muted-foreground mt-1">Format CSV (id,name,status,price) ou JSON (array d'objets)</p>
         </div>
       </Card>
@@ -198,67 +255,126 @@ const Admin = () => {
         />
       </div>
 
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>
+          {rows.length > 0 
+            ? `${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, rows.length)} sur ${rows.length} médicament(s)`
+            : "Aucun médicament trouvé"
+          }
+        </span>
+      </div>
+
       <Card className="overflow-hidden">
         <div className="divide-y">
-          {rows.map((med) => {
-            const entry = state.stock[med.id]?.[pharmacyId];
-            const status = entry?.status ?? "out";
-            return (
-              <div
-                key={med.id}
-                className="grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{med.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {med.dci} · {med.form}
-                    {entry ? ` · maj ${formatDate(entry.updatedAt)}` : ""}
-                  </p>
-                </div>
-
-                <Select
-                  value={status}
-                  onValueChange={(v) =>
-                    updateEntry(med.id, pharmacyId, {
-                      status: v as AvailabilityStatus,
-                      ...(v === "out" ? { price: null } : {}),
-                    })
-                  }
+          {paginatedRows.length > 0 ? (
+            paginatedRows.map((med) => {
+              const entry = state.stock[med.id]?.[pharmacyId];
+              const status = entry?.status ?? "out";
+              return (
+                <div
+                  key={med.id}
+                  className="grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
                 >
-                  <SelectTrigger className="h-9 w-full sm:w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_ORDER.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {STATUS_LABELS[s]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{med.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {med.dci} · {med.form}
+                      {entry ? ` · maj ${formatDate(entry.updatedAt)}` : ""}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    min={0}
-                    step={50}
-                    value={entry?.price ?? ""}
-                    disabled={status === "out"}
-                    onChange={(e) =>
+                  <Select
+                    value={status}
+                    onValueChange={(v) => {
                       updateEntry(med.id, pharmacyId, {
-                        price: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    placeholder="Prix"
-                    className="h-9 w-28"
-                  />
-                  <span className="text-xs text-muted-foreground">FCFA</span>
+                        status: v as AvailabilityStatus,
+                        ...(v === "out" ? { price: null } : {}),
+                      }).catch(() => {
+                        toast({ title: 'Erreur', description: 'Erreur lors de la mise à jour du statut.', variant: 'destructive' });
+                      });
+                    }}
+                    disabled={isUpdating}
+                  >
+                    <SelectTrigger className="h-9 w-full sm:w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_ORDER.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {STATUS_LABELS[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={entry?.price ?? ""}
+                      disabled={status === "out" || isUpdating}
+                      onChange={(e) =>
+                        updateEntry(med.id, pharmacyId, {
+                          price: e.target.value === "" ? null : Number(e.target.value),
+                        }).catch(() => {
+                          toast({ title: 'Erreur', description: 'Erreur lors de la mise à jour du prix.', variant: 'destructive' });
+                        })
+                      }
+                      placeholder="Prix"
+                      className="h-9 w-28"
+                    />
+                    <span className="text-xs text-muted-foreground">FCFA</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="px-4 py-10 text-center text-muted-foreground">
+              Aucun médicament ne correspond à votre recherche.
+            </div>
+          )}
         </div>
       </Card>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Précédent
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                className="w-10"
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Suivant
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

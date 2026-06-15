@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 import { usePharma } from "@/store/PharmaStore";
-import { formatPrice, formatDate, STATUS_ORDER } from "@/lib/format";
+import { formatPrice, formatDate, STATUS_ORDER, normalize } from "@/lib/format";
 import { AvailabilityStatus } from "@/types";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { useMedications } from "@/hooks/useMedications";
@@ -13,21 +13,22 @@ import { useQueryClient } from '@tanstack/react-query';
 import MAPS_URLS from "@/data/mapsUrls";
 import MAPS_METADATA from "@/data/mapsMetadata";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-// Fonction de normalisation pour les recherches
-const normalize = (s: string): string => {
-  return s.toLowerCase().normalize("NFD").replace(/[00-\u036f]/g, "");
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const PharmacyDetail = () => {
   const { id = "" } = useParams();
   const { state, updateEntry } = usePharma();
   const [query, setQuery] = useState("");
+  const { toast } = useToast();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { data: pharmacies, isLoading: isLoadingPharmacies, isError: isErrorPharmacies } = usePharmacies();
   const { data: medications, isLoading: isLoadingMedications, isError: isErrorMedications } = useMedications();
 
-  const { role, pharmacyId: authPharmacyId, logout } = useAuth();
+  const { role, pharmacyId: authPharmacyId, logout, token } = useAuth();
+  const queryClient = useQueryClient();
 
   // When pharmacist leaves their pharmacy page, revert to regular user
   useEffect(() => {
@@ -82,7 +83,6 @@ const PharmacyDetail = () => {
 
   const meta = (MAPS_METADATA as any)[pharmacy.id] || null;
   const isDuty = state.dutyPharmacyId === pharmacy.id;
-  // Prefer explicit URL overrides (backend-provided, local mapping, or metadata)
   const explicitMapUrl = (pharmacy as any).mapsUrl || MAPS_URLS[pharmacy.id] || meta?.mapsUrl;
 
   let mapsUrl = "#";
@@ -102,9 +102,6 @@ const PharmacyDetail = () => {
   const displayHours = meta?.hours ?? pharmacy.hours;
   const displayAddress = meta?.address ?? pharmacy.address;
 
-  const { token, role, pharmacyId: authPharmacyId } = useAuth();
-  const queryClient = useQueryClient();
-
   // Edit mode for pharmacist
   const canEditPharmacy = (role === 'pharmacist' && authPharmacyId === pharmacy.id) || role === 'admin';
   const [editing, setEditing] = useState(false);
@@ -121,63 +118,85 @@ const PharmacyDetail = () => {
   }, [pharmacy, displayAddress, displayPhone, displayHours]);
 
   async function savePharmacyInfo() {
-    if (!token) return alert('Vous devez être connecté');
+    if (!token) {
+      toast({ title: 'Erreur', description: 'Vous devez être connecté.', variant: 'destructive' });
+      return;
+    }
+    setIsUpdating(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/pharmacies/${encodeURIComponent(pharmacy.id)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/pharmacies/${encodeURIComponent(pharmacy.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: editName, address: editAddress, phone: editPhone, hours: editHours }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        return alert(err.message || 'Erreur');
+        toast({ title: 'Erreur', description: err.message || 'Erreur lors de la mise à jour.', variant: 'destructive' });
+        return;
       }
-      await queryClient.invalidateQueries(['pharmacies']);
-      alert('Informations mises à jour');
+      await queryClient.invalidateQueries({ queryKey: ['pharmacies'] });
+      toast({ title: 'Succès', description: 'Informations mises à jour avec succès.' });
       setEditing(false);
     } catch (e) {
-      alert('Erreur réseau');
+      toast({ title: 'Erreur', description: 'Erreur réseau.', variant: 'destructive' });
+    } finally {
+      setIsUpdating(false);
     }
   }
 
-  // Upload handler for pharmacist (upload CSV or JSON)  async function handleFile(file?: File) {
+  async function handleFile(file?: File) {
     if (!file || !medications) return;
+    setIsUpdating(true);
     const text = await file.text();
-    let rows: any[] = [];
+    let importRows: any[] = [];
     try {
       if (file.name.endsWith(".json")) {
-        rows = JSON.parse(text);
+        importRows = JSON.parse(text);
       } else {
-        // simple CSV parser: expect header with id,name,status,price
         const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         const header = lines.shift()?.split(",").map((h) => h.trim().toLowerCase()) || [];
         for (const line of lines) {
           const cols = line.split(",").map((c) => c.trim());
           const obj: any = {};
           header.forEach((h, i) => (obj[h] = cols[i]));
-          rows.push(obj);
+          importRows.push(obj);
         }
       }
     } catch (e) {
-      alert("Format de fichier invalide");
+      toast({ title: 'Erreur', description: 'Format de fichier invalide.', variant: 'destructive' });
+      setIsUpdating(false);
       return;
     }
 
-    // Apply updates
-    for (const r of rows) {
-      // try by id first
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const r of importRows) {
       let med = medications.find((m) => m.id === r.id || m.id === r.medId);
       if (!med && r.name) {
         const n = r.name.toString().toLowerCase();
         med = medications.find((m) => m.name.toLowerCase() === n || m.dci?.toLowerCase() === n);
       }
-      if (!med) continue;
+      if (!med) {
+        errorCount++;
+        continue;
+      }
       const status = (r.status || r.availability || "out") as any;
       const price = r.price === undefined || r.price === null || r.price === "" ? null : Number(r.price);
-      updateEntry(med.id, pharmacy.id, { status, price });
+      
+      try {
+        await updateEntry(med.id, pharmacy.id, { status, price });
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
     }
 
-    alert("Import terminé");
+    setIsUpdating(false);
+    toast({ 
+      title: "Import terminé", 
+      description: `${successCount} médicament(s) importé(s) avec succès. ${errorCount} erreur(s).` 
+    });
   }
 
   const canUpload = role === "pharmacist" && authPharmacyId === pharmacy.id;
@@ -192,7 +211,6 @@ const PharmacyDetail = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-4">
             {meta?.images?.length ? (
-              // show first image if available
               <img src={meta.images[0]} alt={`${pharmacy.name}`} className="h-20 w-20 rounded object-cover" />
             ) : null}
             <div>
@@ -239,6 +257,7 @@ const PharmacyDetail = () => {
             type="file"
             accept=".csv,.json"
             onChange={(e) => handleFile(e.target.files?.[0])}
+            disabled={isUpdating}
           />
         </Card>
       )}
