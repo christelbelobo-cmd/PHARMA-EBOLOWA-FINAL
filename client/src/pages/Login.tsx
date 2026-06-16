@@ -98,21 +98,7 @@ export default function Login() {
             <p className="text-xs text-amber-900 leading-relaxed">
               <strong>Note :</strong> Utilisez les identifiants créés par l'administrateur. Les comptes de démonstration par défaut ont été désactivés pour plus de sécurité.
             </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full text-[10px] h-7 border-amber-300 text-amber-800 hover:bg-amber-100"
-              onClick={async () => {
-                try {
-                  const res = await utils.client.auth.initializeAdmin.mutate();
-                  alert(res.message);
-                } catch (e) {
-                  alert("Erreur lors de l'initialisation");
-                }
-              }}
-            >
-              Initialiser le compte Admin
-            </Button>
+
           </div>
         </div>
       </Card>

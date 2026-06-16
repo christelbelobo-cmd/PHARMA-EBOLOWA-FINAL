@@ -18,21 +18,7 @@ export const appRouter = router({
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
 
-    // Route d'initialisation d'urgence pour le premier admin
-    initializeAdmin: publicProcedure.mutation(async () => {
-      try {
-        await db.createLocalUser({
-          username: 'admin_ebolowa',
-          password: 'ChangeMe2026!',
-          role: 'admin',
-          pharmacyId: null,
-        });
-        return { success: true, message: "Compte admin créé : admin_ebolowa / ChangeMe2026!" };
-      } catch (error) {
-        // Si l'utilisateur existe déjà, on renvoie quand même un succès informatif
-        return { success: true, message: "Le compte admin existe déjà ou a été mis à jour." };
-      }
-    }),
+
     
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
