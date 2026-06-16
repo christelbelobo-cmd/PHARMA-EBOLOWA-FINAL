@@ -13,6 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const loginMutation = trpc.auth.login.useMutation();
+  const utils = trpc.useUtils();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,10 +94,25 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200 space-y-3">
             <p className="text-xs text-amber-900 leading-relaxed">
               <strong>Note :</strong> Utilisez les identifiants créés par l'administrateur. Les comptes de démonstration par défaut ont été désactivés pour plus de sécurité.
             </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full text-[10px] h-7 border-amber-300 text-amber-800 hover:bg-amber-100"
+              onClick={async () => {
+                try {
+                  const res = await utils.client.auth.initializeAdmin.mutate();
+                  alert(res.message);
+                } catch (e) {
+                  alert("Erreur lors de l'initialisation");
+                }
+              }}
+            >
+              Initialiser le compte Admin
+            </Button>
           </div>
         </div>
       </Card>
