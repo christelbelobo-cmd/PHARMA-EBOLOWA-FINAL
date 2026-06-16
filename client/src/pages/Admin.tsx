@@ -27,7 +27,7 @@ export default function Admin() {
   const [user, setUser] = useState<any>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [activeTab, setActiveTab] = useState<"stock" | "duty" | "users">("stock");
+  const [activeTab, setActiveTab] = useState<"stock" | "duty" | "users" | "accounts">("stock");
   
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -47,6 +47,7 @@ export default function Admin() {
   const { data: medications = [], refetch: refetchMeds } = trpc.medication.list.useQuery();
   const { data: pharmacies = [], refetch: refetchPharmacies } = trpc.pharmacy.list.useQuery();
   const { data: stock = [], refetch: refetchStock } = trpc.stock.list.useQuery();
+  const { data: users = [], refetch: refetchUsers } = trpc.auth.list.useQuery();
 
   // Mutations tRPC
   const stockUpdateMutation = trpc.stock.update.useMutation();
@@ -54,6 +55,8 @@ export default function Admin() {
   const importCsvMutation = trpc.dataImport.uploadData.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
   const createUserMutation = trpc.auth.register.useMutation();
+  const toggleUserStatusMutation = trpc.auth.toggleUserStatus.useMutation();
+  const deleteUserMutation = trpc.auth.delete.useMutation();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -72,7 +75,7 @@ export default function Admin() {
   }, [setLocation]);
 
   useEffect(() => {
-    if (user && user.role !== "admin" && (activeTab === "duty" || activeTab === "users")) {
+    if (user && user.role !== "admin" && (activeTab === "duty" || activeTab === "users" || activeTab === "accounts")) {
       setActiveTab("stock");
     }
   }, [activeTab, user]);
@@ -176,6 +179,7 @@ export default function Admin() {
       setNewPassword("");
       setAssociatedPharmacyId("none");
       setNewUserRole("pharmacist");
+      refetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création du compte");
     }
@@ -191,6 +195,34 @@ export default function Admin() {
       refetchPharmacies();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la mise à jour de la garde");
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number, isActive: boolean) => {
+    try {
+      setError("");
+      setSuccess("");
+      await toggleUserStatusMutation.mutateAsync({ userId, isActive: !isActive });
+      setSuccess(isActive ? "Compte désactivé" : "Compte activé");
+      refetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la modification du compte");
+    }
+  };
+
+  const handleDeleteUser = async (userId: number, username: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le compte "${username}" ?`)) {
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+      await deleteUserMutation.mutateAsync({ userId });
+      setSuccess("Utilisateur supprimé avec succès");
+      refetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression de l'utilisateur");
     }
   };
 
@@ -254,6 +286,9 @@ export default function Admin() {
                   <Button variant={activeTab === "users" ? "default" : "ghost"} size="sm" className={`text-xs font-bold h-7 ${activeTab === "users" ? "bg-white text-indigo-700 shadow-xs hover:bg-white" : "text-gray-600"}`} onClick={() => { setActiveTab("users"); setSearchQuery(""); }}>
                     <Users size={13} className="mr-1" /> Utilisateurs
                   </Button>
+                  <Button variant={activeTab === "accounts" ? "default" : "ghost"} size="sm" className={`text-xs font-bold h-7 ${activeTab === "accounts" ? "bg-white text-indigo-700 shadow-xs hover:bg-white" : "text-gray-600"}`} onClick={() => { setActiveTab("accounts"); setSearchQuery(""); }}>
+                    <ShieldCheck size={13} className="mr-1" /> Comptes
+                  </Button>
                 </>
               )}
             </div>
@@ -288,6 +323,7 @@ export default function Admin() {
                 {activeTab === "stock" && "Mise à jour des stocks"}
                 {activeTab === "duty" && "Garde de la ville"}
                 {activeTab === "users" && "Créer un compte utilisateur"}
+                {activeTab === "accounts" && "Gestion des comptes utilisateurs"}
               </h2>
               <p className="text-xs text-gray-500">Insérer vos données en toute sécurité.</p>
             </div>
@@ -331,86 +367,92 @@ export default function Admin() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Nouveau Statut</label>
+                    <label className="text-xs font-bold text-gray-600">État du stock</label>
                     <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Disponibilité..." /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Sélectionner un état..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="available">Disponible</SelectItem>
-                        <SelectItem value="low_stock">Stock faible</SelectItem>
-                        <SelectItem value="on_order">Sur commande</SelectItem>
-                        <SelectItem value="out_of_stock">Rupture de stock</SelectItem>
+                        <SelectItem value="available" className="text-xs">Disponible</SelectItem>
+                        <SelectItem value="low_stock" className="text-xs">Stock faible</SelectItem>
+                        <SelectItem value="on_order" className="text-xs">Sur commande</SelectItem>
+                        <SelectItem value="out_of_stock" className="text-xs">Rupture</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Prix unitaire (FCFA)</label>
-                    <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 1500" className="h-9 text-xs" />
+                    <label className="text-xs font-bold text-gray-600">Prix (optionnel)</label>
+                    <Input
+                      type="number"
+                      placeholder="Entrer le prix..."
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      className="h-9 text-xs"
+                    />
                   </div>
-                  
-                  <Button onClick={handleUpdateStock} disabled={stockUpdateMutation.isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs shadow-xs">
-                    {stockUpdateMutation.isPending ? "Mise à jour..." : "Sauvegarder le produit"}
-                  </Button>
                 </div>
 
-                <div className="pt-3 border-t border-dashed border-slate-200 mt-2">
-                  <label className="text-[11px] font-bold text-indigo-600 flex items-center gap-1 mb-1.5">
-                    <FileSpreadsheet size={13}/> Importation groupée (Fichier CSV)
-                  </label>
-                  <div className="relative flex items-center justify-center w-full border-2 border-dashed border-slate-200 rounded-lg p-3 hover:bg-indigo-50/20 hover:border-indigo-300 transition-all group cursor-pointer text-center">
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      onChange={handleCsvUpload} 
-                      disabled={importCsvMutation.isPending}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
-                    />
-                    <p className="text-xs font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
-                      {importCsvMutation.isPending ? "Traitement des lignes..." : "📂 Charger le CSV de la pharmacie"}
-                    </p>
-                  </div>
+                <Button onClick={handleUpdateStock} disabled={stockUpdateMutation.isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs shadow-xs">
+                  <Package size={14} className="mr-1.5" /> {stockUpdateMutation.isPending ? "Mise à jour..." : "Mettre à jour"}
+                </Button>
+
+                <div className="border-t pt-4 space-y-2">
+                  <label className="text-xs font-bold text-gray-600">Importer un fichier CSV</label>
+                  <input type="file" accept=".csv" onChange={handleCsvUpload} className="text-xs" />
                 </div>
               </div>
             )}
 
             {activeTab === "users" && (
-              <div className="space-y-3.5">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Identifiant unique (Username)</label>
-                  <Input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Ex: pharmacien01" className="h-9 text-xs" />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Mot de passe provisoire</label>
-                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="h-9 text-xs" />
-                  <p className="text-[10px] text-gray-500">Minimum 6 caractères</p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Accréditation système</label>
-                  <Select value={newUserRole} onValueChange={(val: any) => setNewUserRole(val)}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pharmacist">Gérant / Pharmacien</SelectItem>
-                      <SelectItem value="admin">Administrateur Principal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {newUserRole === "pharmacist" && (
+              <div className="space-y-4">
+                <div className="space-y-3.5">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Officine rattachée</label>
-                    <Select value={associatedPharmacyId} onValueChange={setAssociatedPharmacyId}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Lier à une pharmacie..." /></SelectTrigger>
+                    <label className="text-xs font-bold text-gray-600">Identifiant</label>
+                    <Input
+                      type="text"
+                      placeholder="Entrer l'identifiant..."
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">Mot de passe</label>
+                    <Input
+                      type="password"
+                      placeholder="Entrer le mot de passe..."
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">Rôle</label>
+                    <Select value={newUserRole} onValueChange={(val) => setNewUserRole(val as "pharmacist" | "admin")}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucune (Compte volant)</SelectItem>
-                        {pharmacies.map((p) => (
-                          <SelectItem key={p.id} value={p.id.toString()} className="text-xs">{p.name}</SelectItem>
-                        ))}
+                        <SelectItem value="pharmacist" className="text-xs">Pharmacien</SelectItem>
+                        <SelectItem value="admin" className="text-xs">Administrateur</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+
+                  {newUserRole === "pharmacist" && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-600">Officine rattachée</label>
+                      <Select value={associatedPharmacyId} onValueChange={setAssociatedPharmacyId}>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Lier à une pharmacie..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Aucune (Compte volant)</SelectItem>
+                          {pharmacies.map((p) => (
+                            <SelectItem key={p.id} value={p.id.toString()} className="text-xs">{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
 
                 <Button 
                   type="button"
@@ -432,6 +474,15 @@ export default function Admin() {
                 <p className="text-gray-600 leading-relaxed">Le basculement des tours de garde s'effectue en temps réel.</p>
                 <div className="text-[11px] text-gray-500 bg-white p-2 border rounded border-indigo-100/60">
                   Garde active à Ebolowa : <strong className="text-indigo-800 font-bold">{activeDutyName}</strong>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "accounts" && (
+              <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-xs font-medium space-y-2">
+                <p className="text-gray-600 leading-relaxed">Gérez l'accès des utilisateurs en activant ou désactivant leurs comptes.</p>
+                <div className="text-[11px] text-gray-500 bg-white p-2 border rounded border-blue-100/60">
+                  Comptes actifs : <strong className="text-blue-800 font-bold">{users.filter(u => u.isActive).length} / {users.length}</strong>
                 </div>
               </div>
             )}
@@ -492,6 +543,54 @@ export default function Admin() {
                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-gray-400"><ShieldCheck size={20}/></div>
                 <p className="text-xs text-gray-500 max-w-xs mx-auto">Les comptes créés sont automatiquement activés et prêts à l'emploi.</p>
               </div>
+            )}
+
+            {activeTab === "accounts" && (
+              users.length === 0 ? (
+                <div className="p-4 text-center space-y-2">
+                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-gray-400"><Users size={20}/></div>
+                  <p className="text-xs text-gray-500 max-w-xs mx-auto">Aucun compte utilisateur trouvé.</p>
+                </div>
+              ) : (
+                users
+                  .filter((u) => !u.username || u.username.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((u) => {
+                    const pharmacy = pharmacies.find((p) => p.id === u.pharmacyId);
+                    return (
+                      <div key={u.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-slate-50 border-b last:border-b-0">
+                        <div className="space-y-0.5 flex-1">
+                          <h4 className="font-bold text-gray-900 text-sm">{u.username || u.name || "Utilisateur"}</h4>
+                          <p className="text-gray-500 text-xs flex items-center gap-1">
+                            <Badge className={`text-[10px] px-2 py-0.5 font-bold border ${u.role === "admin" ? "bg-red-100 text-red-800 border-red-200" : "bg-emerald-100 text-emerald-800 border-emerald-200"}`}>
+                              {u.role === "admin" ? "Admin" : "Pharmacien"}
+                            </Badge>
+                            {pharmacy && <span className="text-gray-600">• {pharmacy.name}</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            onClick={() => handleToggleUserStatus(u.id, u.isActive)}
+                            variant={u.isActive ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 font-bold text-xs ${u.isActive ? "bg-emerald-600 hover:bg-emerald-700" : "bg-gray-200 hover:bg-gray-300"}`}
+                            disabled={toggleUserStatusMutation.isPending}
+                          >
+                            {u.isActive ? "Actif" : "Inactif"}
+                          </Button>
+                          <Button 
+                            onClick={() => handleDeleteUser(u.id, u.username || u.name || "Utilisateur")}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 font-bold text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={deleteUserMutation.isPending}
+                          >
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+              )
             )}
           </div>
         </div>

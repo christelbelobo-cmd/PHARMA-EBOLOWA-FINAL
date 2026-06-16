@@ -192,6 +192,43 @@ export const appRouter = router({
           });
         }
       }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      // Vérifier que l'utilisateur est admin
+      if (ctx.user?.role !== "admin") {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Action réservée aux administrateurs." 
+        });
+      }
+      return db.getUsers();
+    }),
+
+    delete: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        // Vérifier que l'utilisateur est admin
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({ 
+            code: "FORBIDDEN", 
+            message: "Action réservée aux administrateurs." 
+          });
+        }
+
+        try {
+          await db.deleteUser(input.userId);
+          return { 
+            success: true,
+            message: "Utilisateur supprimé avec succès"
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la suppression de l'utilisateur";
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: errorMessage,
+          });
+        }
+      }),
   }),
 
   pharmacy: router({

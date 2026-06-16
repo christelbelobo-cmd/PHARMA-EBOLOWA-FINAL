@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, pharmacies, medications, stockEntries, Pharmacy, Medication, StockEntry, InsertPharmacy, InsertMedication, InsertStockEntry } from "../drizzle/schema";
+import { InsertUser, users, pharmacies, medications, stockEntries, Pharmacy, Medication, StockEntry, InsertPharmacy, InsertMedication, InsertStockEntry, User } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -235,6 +235,33 @@ export async function toggleUserActive(userId: number, isActive: boolean): Promi
     await db.update(users).set({ isActive }).where(eq(users.id, userId));
   } catch (error) {
     console.error("[Database] Impossible de modifier le statut du compte:", error);
+    throw error;
+  }
+}
+
+// Fonction pour lister tous les utilisateurs
+export async function getUsers(): Promise<User[]> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select().from(users);
+  } catch (error) {
+    console.error("[Database] Impossible de lister les utilisateurs:", error);
+    return [];
+  }
+}
+
+// Fonction pour supprimer un utilisateur
+export async function deleteUser(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Base de données indisponible");
+  }
+
+  try {
+    await db.delete(users).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[Database] Impossible de supprimer l'utilisateur:", error);
     throw error;
   }
 }
