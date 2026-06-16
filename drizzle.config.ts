@@ -1,4 +1,8 @@
 import { defineConfig } from "drizzle-kit";
+import * as dotenv from "dotenv";
+
+// On force drizzle-kit à charger le fichier .env qui est à la racine
+dotenv.config({ path: ".env" });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

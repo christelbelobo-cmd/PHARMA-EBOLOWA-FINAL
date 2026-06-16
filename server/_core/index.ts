@@ -8,6 +8,8 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import multer from "multer"; // Nouvelle importation
+import { dataImportRouter } from "../dataImport"; // Nouvelle importation
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,33 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // Configure Multer for file uploads (same as in dataImport.ts)
+  const upload = multer({
+    storage: multer.memoryStorage(), // Store files in memory
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    },
+  });
+
+  // New endpoint for file upload
+  app.post("/api/upload-data", upload.single("file"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded." });
+    }
+
+    try {
+      // Call the tRPC procedure with the file buffer
+      const result = await dataImportRouter.createCaller(createContext(req, res)).uploadData({
+        file: req.file.buffer,
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error processing uploaded file:", error);
+      res.status(500).json({ message: error.message || "Failed to import data." });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
