@@ -1,4 +1,12 @@
 import "dotenv/config";
+import crypto from "crypto";
+
+// Polyfill pour les anciennes versions de Node.js
+if (typeof globalThis.crypto === "undefined") {
+  // @ts-ignore
+  globalThis.crypto = crypto;
+}
+
 import express from "express";
 import { createServer } from "http";
 import net from "net";
