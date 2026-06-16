@@ -22,6 +22,9 @@ export default function Login() {
       const result = await loginMutation.mutateAsync({ username, password });
       localStorage.setItem("token", result.token);
       localStorage.setItem("user", JSON.stringify(result.user));
+      // Compatibilité avec le hook useAuth
+      localStorage.setItem("manus-runtime-user-info", JSON.stringify(result.user));
+      
       // Rediriger les admins et pharmaciens vers le tableau de bord
       setLocation(result.user.role === "admin" || result.user.role === "pharmacist" ? "/admin" : "/");
     } catch (err) {
@@ -90,15 +93,9 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-900">
-              <strong>Comptes de test :</strong>
-            </p>
-            <p className="text-sm text-blue-800 mt-2">
-              Admin: admin / admin123
-            </p>
-            <p className="text-sm text-blue-800">
-              Pharmacist: pharmacist / pass123
+          <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <p className="text-xs text-amber-900 leading-relaxed">
+              <strong>Note :</strong> Utilisez les identifiants créés par l'administrateur. Les comptes de démonstration par défaut ont été désactivés pour plus de sécurité.
             </p>
           </div>
         </div>

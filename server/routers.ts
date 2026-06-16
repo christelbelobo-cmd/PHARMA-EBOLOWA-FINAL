@@ -29,31 +29,8 @@ export const appRouter = router({
     login: publicProcedure
       .input(z.object({ username: z.string(), password: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        // 1. Gestion des comptes de démo en dur pour le développement rapide
-        if (input.username === "admin" && input.password === "admin123") {
-          return {
-            token: "demo-admin-token",
-            user: {
-              id: 0,
-              username: "admin",
-              role: "admin",
-              pharmacyId: null,
-            },
-          };
-        }
-        if (input.username === "pharmacist" && input.password === "pass123") {
-          return {
-            token: "demo-pharmacist-token",
-            user: {
-              id: 0,
-              username: "pharmacist",
-              role: "pharmacist",
-              pharmacyId: 1,
-            },
-          };
-        }
+        // 1. Authentification Hybride via la Base de Données (Comptes locaux et démo en base)
 
-        // 2. Authentification Hybride via la Base de Données
         const dbInstance = await db.getDb();
         if (!dbInstance) {
           throw new TRPCError({

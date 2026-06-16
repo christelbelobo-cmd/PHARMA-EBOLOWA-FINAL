@@ -16,6 +16,14 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
 
   if (!isUnauthorized) return;
+  
+  // Si on est déjà sur la page de login, on ne redirige pas
+  if (window.location.pathname === "/login") return;
+
+  // Nettoyage du localStorage en cas d'erreur d'auth
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.removeItem("manus-runtime-user-info");
 
   // Correction : Redirection stricte vers la route locale pour empêcher la fuite OAuth
   window.location.href = "/login";

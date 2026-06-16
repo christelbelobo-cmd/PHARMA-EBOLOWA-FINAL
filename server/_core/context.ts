@@ -17,6 +17,9 @@ export async function createContext(
     user = await sdk.authenticateRequest(opts.req);
   } catch (error) {
     // Authentication is optional for public procedures.
+    if (opts.req.url.includes('auth.me') || opts.req.url.includes('auth.list')) {
+      console.warn(`[Auth] Authentication failed for ${opts.req.url}:`, error instanceof Error ? error.message : String(error));
+    }
     user = null;
   }
 
