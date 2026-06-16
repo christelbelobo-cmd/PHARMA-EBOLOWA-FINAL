@@ -171,3 +171,31 @@ export async function getStockByMedication(medicationId: number): Promise<StockE
   if (!db) return [];
   return db.select().from(stockEntries).where(eq(stockEntries.medicationId, medicationId));
 }
+// À ajouter à la fin de ton fichier db.ts
+
+export async function createLocalUser(data: {
+  username: string;
+  password: string;
+  role: "pharmacist" | "admin";
+  pharmacyId: number | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Base de données indisponible");
+  }
+
+  try {
+    await db.insert(users).values({
+      openId: `local-${data.username}-${Date.now()}`, // On génère un openId fictif unique pour satisfaire la structure de la base de données
+      name: data.username, // L'identifiant va dans 'name'
+      password: data.password, // Stockage direct (ou hashé si tu gères le hachage)
+      role: data.role,
+      pharmacyId: data.pharmacyId,
+      loginMethod: "local",
+      lastSignedIn: new Date(),
+    });
+  } catch (error) {
+    console.error("[Database] Impossible de créer le compte pharmacien:", error);
+    throw error;
+  }
+}
