@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, LogOut, Package, ShieldCheck, Activity, Pill, Store, Users, Plus, Search, FileSpreadsheet } from "lucide-react";
+import { AlertCircle, LogOut, Package, ShieldCheck, Activity, Pill, Store, Users, Plus, Search, FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 const statusConfig = {
@@ -53,8 +53,6 @@ export default function Admin() {
   const pharmacySetDutyMutation = trpc.pharmacy.setDuty.useMutation();
   const importCsvMutation = trpc.dataImport.uploadData.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
-  
-  // Correction ici : Changement de route de auth.createUser à auth.register
   const createUserMutation = trpc.auth.register.useMutation();
 
   useEffect(() => {
@@ -154,6 +152,11 @@ export default function Admin() {
       return;
     }
 
+    if (newPassword.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
     try {
       setError("");
       setSuccess("");
@@ -168,10 +171,11 @@ export default function Admin() {
         pharmacyId: pId,
       });
 
-      setSuccess(`Le compte de la pharmacie pour "${newUsername}" a été créé avec succès !`);
+      setSuccess(`Le compte pour "${newUsername}" a été créé et activé avec succès !`);
       setNewUsername("");
       setNewPassword("");
       setAssociatedPharmacyId("none");
+      setNewUserRole("pharmacist");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création du compte");
     }
@@ -283,7 +287,7 @@ export default function Admin() {
               <h2 className="text-sm font-bold text-gray-900 tracking-tight">
                 {activeTab === "stock" && "Mise à jour des stocks"}
                 {activeTab === "duty" && "Garde de la ville"}
-                {activeTab === "users" && "Nouveau compte Pharmacien"}
+                {activeTab === "users" && "Créer un compte utilisateur"}
               </h2>
               <p className="text-xs text-gray-500">Insérer vos données en toute sécurité.</p>
             </div>
@@ -295,7 +299,7 @@ export default function Admin() {
             )}
             {success && (
               <Alert className="py-2 px-3 bg-emerald-50 text-emerald-900 border-emerald-200">
-                <AlertDescription className="text-xs font-medium">✓ {success}</AlertDescription>
+                <AlertDescription className="text-xs font-medium flex items-center gap-1.5"><CheckCircle size={14}/> {success}</AlertDescription>
               </Alert>
             )}
 
@@ -373,12 +377,13 @@ export default function Admin() {
               <div className="space-y-3.5">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-600">Identifiant unique (Username)</label>
-                  <Input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Ex: equasep" className="h-9 text-xs" />
+                  <Input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Ex: pharmacien01" className="h-9 text-xs" />
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-600">Mot de passe provisoire</label>
                   <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="h-9 text-xs" />
+                  <p className="text-[10px] text-gray-500">Minimum 6 caractères</p>
                 </div>
 
                 <div className="space-y-1">
@@ -415,9 +420,9 @@ export default function Admin() {
                     handleCreateUser(e);
                   }} 
                   disabled={createUserMutation.isPending} 
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs shadow-xs flex items-center justify-center gap-1.5"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <Plus size={14}/> {createUserMutation.isPending ? "Création en cours..." : "Activer le compte utilisateur"}
+                  <Plus size={14}/> {createUserMutation.isPending ? "Création en cours..." : "Activer le compte"}
                 </Button>
               </div>
             )}
@@ -485,7 +490,7 @@ export default function Admin() {
             {activeTab === "users" && (
               <div className="p-4 text-center space-y-2">
                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-gray-400"><ShieldCheck size={20}/></div>
-                <p className="text-xs text-gray-500 max-w-xs mx-auto">Comptes enregistrés directement gérés en base de données.</p>
+                <p className="text-xs text-gray-500 max-w-xs mx-auto">Les comptes créés sont automatiquement activés et prêts à l'emploi.</p>
               </div>
             )}
           </div>

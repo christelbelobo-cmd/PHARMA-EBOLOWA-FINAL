@@ -171,8 +171,8 @@ export async function getStockByMedication(medicationId: number): Promise<StockE
   if (!db) return [];
   return db.select().from(stockEntries).where(eq(stockEntries.medicationId, medicationId));
 }
-// À ajouter à la fin de ton fichier db.ts
 
+// Fonction pour créer un utilisateur local (authentification sans OAuth)
 export async function createLocalUser(data: {
   username: string;
   password: string;
@@ -184,18 +184,57 @@ export async function createLocalUser(data: {
     throw new Error("Base de données indisponible");
   }
 
+  // Validation des données
+  if (!data.username || data.username.trim().length === 0) {
+    throw new Error("L'identifiant utilisateur est requis");
+  }
+  if (!data.password || data.password.length < 6) {
+    throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+  }
+  if (data.role === "pharmacist" && !data.pharmacyId) {
+    throw new Error("Une pharmacie doit être associée à un pharmacien");
+  }
+
   try {
+    // Vérifier si l'utilisateur existe déjà
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, data.username))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      throw new Error(`L'identifiant '${data.username}' est déjà utilisé`);
+    }
+
     await db.insert(users).values({
-      openId: `local-${data.username}-${Date.now()}`, // On génère un openId fictif unique pour satisfaire la structure de la base de données
-      name: data.username, // L'identifiant va dans 'name'
-      password: data.password, // Stockage direct (ou hashé si tu gères le hachage)
+      openId: `local-${data.username}-${Date.now()}`,
+      username: data.username,
+      name: data.username,
+      password: data.password,
       role: data.role,
       pharmacyId: data.pharmacyId,
       loginMethod: "local",
+      isActive: true,
       lastSignedIn: new Date(),
     });
   } catch (error) {
     console.error("[Database] Impossible de créer le compte pharmacien:", error);
+    throw error;
+  }
+}
+
+// Fonction pour activer/désactiver un compte utilisateur
+export async function toggleUserActive(userId: number, isActive: boolean): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Base de données indisponible");
+  }
+
+  try {
+    await db.update(users).set({ isActive }).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[Database] Impossible de modifier le statut du compte:", error);
     throw error;
   }
 }

@@ -15,10 +15,13 @@ export const users = mysqlTable("users", {
   /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
+  username: varchar("username", { length: 255 }).unique(), // Identifiant unique pour connexion locale
+  password: text("password"), // Mot de passe pour authentification locale
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "pharmacist"]).default("user").notNull(),
   pharmacyId: int("pharmacyId"),
+  isActive: boolean("isActive").default(true).notNull(), // Statut d'activation du compte
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -26,6 +29,14 @@ export const users = mysqlTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// Type pour la création d'utilisateur local
+export type CreateLocalUserInput = {
+  username: string;
+  password: string;
+  role: "pharmacist" | "admin";
+  pharmacyId: number | null;
+};
 
 /**
  * Pharmacies table - stores pharmacy information

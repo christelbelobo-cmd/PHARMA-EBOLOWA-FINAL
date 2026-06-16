@@ -34,6 +34,7 @@ export const appRouter = router({
           return {
             token: "demo-admin-token",
             user: {
+              id: 0,
               username: "admin",
               role: "admin",
               pharmacyId: null,
@@ -44,6 +45,7 @@ export const appRouter = router({
           return {
             token: "demo-pharmacist-token",
             user: {
+              id: 0,
               username: "pharmacist",
               role: "pharmacist",
               pharmacyId: 1,
@@ -60,18 +62,14 @@ export const appRouter = router({
           });
         }
 
-        // CORRECTION : Recherche flexible sur 'name' ou 'username' s'il existe pour éviter le conflit
-        // @ts-ignore - au cas où 'username' n'est pas encore généré dans le type Drizzle strict
-        const conditions = [eq(users.name, input.username)];
-        if ('username' in users) {
-          // @ts-ignore
-          conditions.push(eq(users.username, input.username));
-        }
-
+        // Recherche flexible sur 'username' ou 'name'
         const foundUsers = await dbInstance
           .select()
           .from(users)
-          .where(or(...conditions))
+          .where(or(
+            eq(users.username, input.username),
+            eq(users.name, input.username)
+          ))
           .limit(1);
 
         const dbUser = foundUsers[0];
@@ -84,10 +82,16 @@ export const appRouter = router({
           });
         }
 
-        // 4. Génération et injection du Session Token (Alignement Express/OAuth)
-        // @ts-ignore
+        // 4. Vérifier que le compte est actif
+        if (!dbUser.isActive) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Ce compte a été désactivé. Contactez l'administrateur.",
+          });
+        }
+
+        // 5. Génération et injection du Session Token (Alignement Express/OAuth)
         const userIdentifier = dbUser.openId || `local-${dbUser.id}`;
-        // @ts-ignore
         const displayName = dbUser.username || dbUser.name || "Utilisateur Local";
 
         const sessionToken = await sdk.createSessionToken(userIdentifier, {
@@ -104,30 +108,30 @@ export const appRouter = router({
           });
         }
 
-        // 5. Retour des informations utilisateur formatées pour le client React
+        // 6. Retour des informations utilisateur formatées pour le client React
         return {
           token: sessionToken,
           user: {
             id: dbUser.id,
-            // @ts-ignore
-            username: dbUser.name || dbUser.username,
+            username: dbUser.username || dbUser.name,
             role: dbUser.role, 
             pharmacyId: dbUser.pharmacyId,
           },
         };
       }),
 
-    // Nouvelle route appelée par ton panneau Admin pour créer les comptes en DB
-     register: protectedProcedure
+    // Route pour créer/enregistrer un nouvel utilisateur (Admin uniquement)
+    register: protectedProcedure
       .input(
         z.object({
-          username: z.string(),
-          password: z.string(),
+          username: z.string().min(3, "L'identifiant doit contenir au moins 3 caractères"),
+          password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
           role: z.enum(["pharmacist", "admin"]),
           pharmacyId: z.number().nullable(),
         })
       )
       .mutation(async ({ input, ctx }) => {
+        // Vérifier que l'utilisateur est admin
         if (ctx.user?.role !== "admin") {
           throw new TRPCError({ 
             code: "FORBIDDEN", 
@@ -135,15 +139,58 @@ export const appRouter = router({
           });
         }
 
-        // Appel de la fonction ajoutée dans ton db.ts
-        await db.createLocalUser({
-          username: input.username,
-          password: input.password,
-          role: input.role,
-          pharmacyId: input.pharmacyId,
-        });
+        try {
+          // Appel de la fonction de création d'utilisateur
+          await db.createLocalUser({
+            username: input.username,
+            password: input.password,
+            role: input.role,
+            pharmacyId: input.pharmacyId,
+          });
 
-        return { success: true };
+          return { 
+            success: true,
+            message: `Le compte '${input.username}' a été créé avec succès`
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la création du compte";
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: errorMessage,
+          });
+        }
+      }),
+
+    // Route pour activer/désactiver un compte utilisateur
+    toggleUserStatus: protectedProcedure
+      .input(
+        z.object({
+          userId: z.number(),
+          isActive: z.boolean(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        // Vérifier que l'utilisateur est admin
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({ 
+            code: "FORBIDDEN", 
+            message: "Action réservée aux administrateurs." 
+          });
+        }
+
+        try {
+          await db.toggleUserActive(input.userId, input.isActive);
+          return { 
+            success: true,
+            message: input.isActive ? "Compte activé" : "Compte désactivé"
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la modification du compte";
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: errorMessage,
+          });
+        }
       }),
   }),
 
