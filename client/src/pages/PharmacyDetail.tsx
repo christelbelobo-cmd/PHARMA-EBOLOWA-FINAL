@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Clock, MapIcon, ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 const statusConfig = {
   available: { label: "Disponible", color: "bg-green-100 text-green-800" },
@@ -26,13 +28,17 @@ export default function PharmacyDetail() {
 
   if (!pharmacy) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 text-lg">Pharmacie non trouvée</p>
-          <Link href="/pharmacies">
-            <Button className="mt-4">Retour aux pharmacies</Button>
-          </Link>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <PublicHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-600 text-lg">Pharmacie non trouvée</p>
+            <Link href="/pharmacies">
+              <Button className="mt-4">Retour aux pharmacies</Button>
+            </Link>
+          </div>
         </div>
+        <PublicFooter />
       </div>
     );
   }
@@ -43,31 +49,12 @@ export default function PharmacyDetail() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
-                Φ
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">PharmaEbolowa</h1>
-            </div>
-          </Link>
-          <nav className="flex gap-4">
-            <Link href="/">
-              <Button variant="ghost">Accueil</Button>
-            </Link>
-            <Link href="/pharmacies">
-              <Button variant="ghost">Pharmacies</Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header Unifié */}
+      <PublicHeader />
 
       {/* Back Button */}
-      <section className="max-w-7xl mx-auto px-4 py-4">
+      <section className="max-w-7xl mx-auto px-4 py-4 w-full">
         <Link href="/pharmacies">
           <Button variant="ghost" size="sm" className="flex items-center gap-2">
             <ArrowLeft size={18} />
@@ -77,7 +64,7 @@ export default function PharmacyDetail() {
       </section>
 
       {/* Pharmacy Info */}
-      <section className="max-w-7xl mx-auto px-4 py-8">
+      <section className="max-w-7xl mx-auto px-4 py-8 w-full">
         <Card className="p-8">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -150,7 +137,7 @@ export default function PharmacyDetail() {
       </section>
 
       {/* Stock */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
+      <section className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full">
         <h2 className="text-3xl font-bold text-gray-900 mb-6">Stock disponible</h2>
 
         <div className="space-y-4">
@@ -202,14 +189,8 @@ export default function PharmacyDetail() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-400">
-            © 2024 PharmaEbolowa. Tous droits réservés.
-          </p>
-        </div>
-      </footer>
+      {/* Footer Unifié */}
+      <PublicFooter />
     </div>
   );
 }

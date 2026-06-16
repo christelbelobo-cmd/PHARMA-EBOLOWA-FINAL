@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { Search, MapPin, Phone, Clock, Map, Pill } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 const statusConfig = {
   available: { label: "Disponible", color: "bg-green-100 text-green-800 border-green-200" },
@@ -54,38 +56,10 @@ export default function Home() {
 
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans">
-      
-      {/* 1. Header Fixe Épuré */}
-      <header className="bg-white border-b shadow-sm flex-none z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              Φ
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-gray-900 leading-none">PharmaEbolowa</h1>
-              <span className="text-[10px] text-gray-500 font-medium flex items-center gap-0.5 mt-0.5">
-                <MapPin size={10} className="text-indigo-500" /> Ebolowa, Cameroun
-              </span>
-            </div>
-          </div>
-          <nav className="flex gap-2">
-            <Link href="/medications">
-              <Button variant="ghost" size="sm" className="text-gray-600 font-medium">Médicaments</Button>
-            </Link>
-            <Link href="/pharmacies">
-              <Button variant="ghost" size="sm" className="text-gray-600 font-medium">Pharmacies</Button>
-            </Link>
-            {user?.role === "admin" && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Admin</Button>
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
+      {/* Header Unifié */}
+      <PublicHeader />
 
-      {/* 2. Zone Centrale Dynamique Flex-1 (Prend toute la hauteur restante sans déborder) */}
+      {/* Zone Centrale Dynamique Flex-1 (Prend toute la hauteur restante sans déborder) */}
       <main className="flex-1 flex flex-col overflow-hidden max-w-4xl w-full mx-auto px-4 py-6 gap-6 justify-center">
         
         {/* Titre accrocheur et compact */}
@@ -254,10 +228,8 @@ export default function Home() {
         </div>
       </main>
 
-      {/* 4. Footer Fixe et Discret */}
-      <footer className="bg-white border-t py-2 flex-none text-center text-xs text-gray-400">
-        © 2026 PharmaEbolowa — Système de suivi de disponibilité en temps réel
-      </footer>
+      {/* Footer Unifié */}
+      <PublicFooter />
     </div>
   );
 }

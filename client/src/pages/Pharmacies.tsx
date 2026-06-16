@@ -5,33 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { MapPin, Phone, Clock, MapIcon } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 export default function Pharmacies() {
   const { data: pharmacies = [] } = trpc.pharmacy.list.useQuery();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
-                Φ
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">PharmaEbolowa</h1>
-            </div>
-          </Link>
-          <nav className="flex gap-4">
-            <Link href="/">
-              <Button variant="ghost">Accueil</Button>
-            </Link>
-            <Link href="/medications">
-              <Button variant="ghost">Médicaments</Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header Unifié */}
+      <PublicHeader />
 
       {/* Page Title */}
       <section className="bg-white border-b">
@@ -46,7 +29,7 @@ export default function Pharmacies() {
       </section>
 
       {/* Pharmacies Grid */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
+      <section className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pharmacies.map((pharmacy) => (
             <Card
@@ -122,14 +105,8 @@ export default function Pharmacies() {
         )}
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-400">
-            © 2024 PharmaEbolowa. Tous droits réservés.
-          </p>
-        </div>
-      </footer>
+      {/* Footer Unifié */}
+      <PublicFooter />
     </div>
   );
 }

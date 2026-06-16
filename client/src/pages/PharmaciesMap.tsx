@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 interface PharmacyWithDistance {
   id: number;
@@ -190,8 +192,11 @@ export default function PharmaciesMap() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
+      {/* Header Unifié */}
+      <PublicHeader />
+
+      <div className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             Pharmacies à proximité
@@ -389,6 +394,9 @@ export default function PharmaciesMap() {
           </Card>
         )}
       </div>
+
+      {/* Footer Unifié */}
+      <PublicFooter />
     </div>
   );
 }
@@ -416,8 +424,8 @@ function calculateDistance(
 function createUserMarkerContent(): HTMLElement {
   const div = document.createElement("div");
   div.innerHTML = `
-    <div class="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full border-4 border-white shadow-lg">
-      <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+    <div class="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-lg">
+      <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
       </svg>
     </div>
@@ -425,15 +433,14 @@ function createUserMarkerContent(): HTMLElement {
   return div;
 }
 
-function createPharmacyMarkerContent(pharmacy: PharmacyWithDistance): HTMLElement {
+function createPharmacyMarkerContent(
+  pharmacy: PharmacyWithDistance
+): HTMLElement {
   const div = document.createElement("div");
+  const bgColor = pharmacy.isOnDuty ? "bg-red-600" : "bg-indigo-600";
   div.innerHTML = `
-    <div class="flex items-center justify-center w-10 h-10 ${
-      pharmacy.isOnDuty ? "bg-green-600" : "bg-red-600"
-    } rounded-full border-4 border-white shadow-lg">
-      <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M10.5 1.5H9.5C4.81 1.5 1 5.31 1 10c0 5.25 3.07 9.26 7 10.33v-2.3c-2.39-.69-4-2.95-4-5.53 0-3.31 2.69-6 6-6s6 2.69 6 6c0 2.58-1.61 4.84-4 5.53v2.3c3.93-1.07 7-5.08 7-10.33 0-4.69-3.81-8.5-8.5-8.5z" />
-      </svg>
+    <div class="flex items-center justify-center w-10 h-10 ${bgColor} rounded-full border-2 border-white shadow-lg cursor-pointer hover:scale-110 transition-transform">
+      <span class="text-white font-bold text-lg">Φ</span>
     </div>
   `;
   return div;

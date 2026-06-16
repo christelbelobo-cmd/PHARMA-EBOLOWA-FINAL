@@ -6,6 +6,8 @@ import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 const statusConfig = {
   available: { label: "Disponible", color: "bg-green-100 text-green-800" },
@@ -53,28 +55,9 @@ export default function Medications() {
   }, [medications, searchQuery, selectedCategory, onlyAvailable, stock]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
-                Φ
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">PharmaEbolowa</h1>
-            </div>
-          </Link>
-          <nav className="flex gap-4">
-            <Link href="/">
-              <Button variant="ghost">Accueil</Button>
-            </Link>
-            <Link href="/pharmacies">
-              <Button variant="ghost">Pharmacies</Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header Unifié */}
+      <PublicHeader />
 
       {/* Page Title */}
       <section className="bg-white border-b">
@@ -89,7 +72,7 @@ export default function Medications() {
       </section>
 
       {/* Filters */}
-      <section className="max-w-7xl mx-auto px-4 py-8">
+      <section className="max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="bg-white rounded-lg p-6 shadow-sm">
           {/* Search */}
           <div className="mb-6">
@@ -152,7 +135,7 @@ export default function Medications() {
       </section>
 
       {/* Medications List */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
+      <section className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full">
         <div className="space-y-4">
           {filteredMedications.map((medication) => {
             const medStock = stock.filter((s) => s.medicationId === medication.id);
@@ -220,14 +203,8 @@ export default function Medications() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-400">
-            © 2024 PharmaEbolowa. Tous droits réservés.
-          </p>
-        </div>
-      </footer>
+      {/* Footer Unifié */}
+      <PublicFooter />
     </div>
   );
 }
