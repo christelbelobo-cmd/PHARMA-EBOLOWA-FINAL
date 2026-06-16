@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, LogOut, Package, ShieldCheck, Activity, Pill, Store, UploadCloud } from "lucide-react";
+import { AlertCircle, Package, Activity, Pill, Store } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import axios from "axios";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 
 const statusConfig = {
   available: { label: "Disponible", color: "bg-green-100 text-green-800 border-green-200" },
@@ -33,8 +35,8 @@ export default function Admin() {
   const [selectedPharmacy, setSelectedPharmacy] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
   const [price, setPrice] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null); // Nouvel état pour le fichier
-  const [isUploading, setIsUploading] = useState(false); // Nouvel état pour l'indicateur de chargement
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: medications = [], refetch: refetchMeds } = trpc.medication.list.useQuery();
   const { data: pharmacies = [], refetch: refetchPharmacies } = trpc.pharmacy.list.useQuery();
@@ -51,19 +53,13 @@ export default function Admin() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== "admin") {
+    if (parsedUser.role !== "admin" && parsedUser.role !== "pharmacist") {
       setLocation("/");
       return;
     }
 
     setUser(parsedUser);
   }, [setLocation]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setLocation("/");
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -144,11 +140,15 @@ export default function Admin() {
 
   if (!user) {
     return (
-      <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm text-gray-500 font-medium">Chargement du tableau de bord...</p>
+      <div className="h-screen w-full bg-slate-50 flex flex-col">
+        <PublicHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-sm text-gray-500 font-medium">Chargement du tableau de bord...</p>
+          </div>
         </div>
+        <PublicFooter />
       </div>
     );
   }
@@ -162,50 +162,39 @@ export default function Admin() {
     : null;
 
   const totalRuptures = stock.filter(s => s.status === "out_of_stock").length;
-  const activeDutyName = pharmacies.find(p => p.isOnDuty)?.name || "Aucune";
 
   return (
-    <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans">
-      
-      {/* 1. Header Dynamique Multi-Rôles */}
-      <header className="bg-white border-b shadow-sm flex-none z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-          
-          {/* Section Gauche : Logo & Identité Connectée */}
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md shrink-0">
-              Φ
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-tight text-gray-950 leading-none">
-                  PharmaEbolowa
-                </h1>
-                {user.role === "admin" ? (
-                  <span className="text-[10px] bg-red-100 text-red-800 border border-red-200 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    Équipe Admin
-                  </span>
-                ) : (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    Gérant Pharmacie
-                  </span>
-                )}
-              </div>
-              
-              <p className="text-xs text-gray-500 font-medium flex items-center gap-1.5 mt-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                Session active : <strong className="text-gray-800 font-bold">{user.username}</strong>
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen w-full bg-slate-50 flex flex-col font-sans">
+      <PublicHeader />
 
-          {/* Section Droite : Onglets de Navigation & Déconnexion */}
-          <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0">
+      {/* Mini Barre de Stats */}
+      <section className="bg-white border-b px-4 py-3 flex-none shadow-sm">
+        <div className="max-w-7xl mx-auto grid grid-cols-3 divide-x divide-slate-100 text-center">
+          <div className="py-1">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex items-center justify-center gap-1"><Store size={12}/> Officines</p>
+            <p className="text-base font-extrabold text-slate-800">{pharmacies.length}</p>
+          </div>
+          <div className="py-1">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex items-center justify-center gap-1"><Pill size={12}/> Catalogue</p>
+            <p className="text-base font-extrabold text-slate-800">{medications.length}</p>
+          </div>
+          <div className="py-1">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-red-400 flex items-center justify-center gap-1"><AlertCircle size={12}/> Ruptures</p>
+            <p className="text-base font-extrabold text-red-600">{totalRuptures}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Zone de Navigation Admin */}
+      <div className="bg-white border-b sticky top-[65px] z-30">
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-sm font-bold text-gray-900">Gestion</h2>
             <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
               <Button
                 variant={activeTab === "stock" ? "default" : "ghost"}
                 size="sm"
-                className={`text-xs font-bold h-7 ${activeTab === "stock" ? "bg-white text-indigo-700 shadow-xs hover:bg-white" : "text-gray-600"}`}
+                className={`text-xs font-bold h-7 ${activeTab === "stock" ? "bg-white text-indigo-700 shadow-sm hover:bg-white" : "text-gray-600"}`}
                 onClick={() => setActiveTab("stock")}
               >
                 <Package size={13} className="mr-1" /> Stocks
@@ -213,78 +202,55 @@ export default function Admin() {
               <Button
                 variant={activeTab === "duty" ? "default" : "ghost"}
                 size="sm"
-                className={`text-xs font-bold h-7 ${activeTab === "duty" ? "bg-white text-indigo-700 shadow-xs hover:bg-white" : "text-gray-600"}`}
+                className={`text-xs font-bold h-7 ${activeTab === "duty" ? "bg-white text-indigo-700 shadow-sm hover:bg-white" : "text-gray-600"}`}
                 onClick={() => setActiveTab("duty")}
               >
                 <Activity size={13} className="mr-1" /> Tour de Garde
               </Button>
             </div>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleLogout} 
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 font-bold text-xs h-8 px-2.5 rounded-lg transition-colors shrink-0"
-            >
-              <LogOut size={14} className="mr-1" /> Quitter
-            </Button>
           </div>
+          <div className="flex items-center gap-2">
+             <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+               {user.role === "admin" ? "Administrateur" : "Pharmacien"}
+             </Badge>
+          </div>
+        </div>
+      </div>
 
-        </div>
-      </header>
-
-      {/* 2. Mini Barre de Stats d'exploitation */}
-      <section className="bg-white border-b px-4 py-2 flex-none grid grid-cols-3 divide-x divide-slate-100 text-center max-w-7xl w-full mx-auto shadow-xs">
-        <div className="py-1">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex items-center justify-center gap-1"><Store size={12}/> Officines</p>
-          <p className="text-base font-extrabold text-slate-800">{pharmacies.length} enregistrées</p>
-        </div>
-        <div className="py-1">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex items-center justify-center gap-1"><Pill size={12}/> Catalogue</p>
-          <p className="text-base font-extrabold text-slate-800">{medications.length} produits</p>
-        </div>
-        <div className="py-1">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-red-400 flex items-center justify-center gap-1"><AlertCircle size={12}/> Alertes Rupture</p>
-          <p className="text-base font-extrabold text-red-600">{totalRuptures} cas signalés</p>
-        </div>
-      </section>
-
-      {/* 3. Zone de Travail Flex-1 en colonnes */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 overflow-hidden min-h-0">
-        
-        {/* COLONNE GAUCHE : Formulaires fixes d'action */}
-        <div className="w-full md:w-[380px] flex flex-col flex-none bg-white p-4 rounded-xl border shadow-xs space-y-4 justify-between">
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-md font-bold text-gray-900 tracking-tight">
-                {activeTab === "stock" ? "Mise à jour des stocks" : "Pilotage de la Garde"}
-              </h2>
-              <p className="text-xs text-gray-500">Sélectionnez les critères requis.</p>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        {/* Formulaires d'action */}
+        <div className="w-full md:w-[400px] flex flex-col gap-6">
+          <Card className="p-6 shadow-sm border-slate-200">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                {activeTab === "stock" ? "Mise à jour manuelle" : "Pilotage de la Garde"}
+              </h3>
+              <p className="text-xs text-gray-500">Modifier les données en temps réel.</p>
             </div>
 
             {error && (
-              <Alert variant="destructive" className="py-2 px-3 border-red-200 bg-red-50 text-red-900">
+              <Alert variant="destructive" className="mb-4 py-2 px-3">
                 <AlertDescription className="text-xs flex items-center gap-1.5 font-medium"><AlertCircle size={14}/> {error}</AlertDescription>
               </Alert>
             )}
             {success && (
-              <Alert className="py-2 px-3 bg-emerald-50 border-emerald-200 text-emerald-900">
+              <Alert className="mb-4 py-2 px-3 bg-emerald-50 border-emerald-200 text-emerald-900">
                 <AlertDescription className="text-xs font-medium">✓ {success}</AlertDescription>
               </Alert>
             )}
 
             {activeTab === "stock" ? (
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Médicament ciblé</label>
+                  <label className="text-xs font-bold text-gray-600">Médicament</label>
                   <Select value={selectedMedication?.toString() || ""} onValueChange={(val) => setSelectedMedication(parseInt(val))}>
-                    <SelectTrigger className="h-9 text-xs bg-slate-50/50">
+                    <SelectTrigger className="h-10 text-xs">
                       <SelectValue placeholder="Choisir un produit..." />
                     </SelectTrigger>
                     <SelectContent>
                       {medications.map((med) => (
                         <SelectItem key={med.id} value={med.id.toString()} className="text-xs">
-                          {med.name} {med.dci && `(${med.dci})`}
+                          {med.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -292,9 +258,9 @@ export default function Admin() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Pharmacie distributrice</label>
+                  <label className="text-xs font-bold text-gray-600">Pharmacie</label>
                   <Select value={selectedPharmacy?.toString() || ""} onValueChange={(val) => setSelectedPharmacy(parseInt(val))}>
-                    <SelectTrigger className="h-9 text-xs bg-slate-50/50">
+                    <SelectTrigger className="h-10 text-xs">
                       <SelectValue placeholder="Choisir une pharmacie..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -307,172 +273,146 @@ export default function Admin() {
                   </Select>
                 </div>
 
-                {currentStock && (
-                  <div className="p-2.5 bg-slate-50 border rounded-lg flex items-center justify-between text-xs">
-                    <span className="text-gray-500 font-medium">État actuel :</span>
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <Badge className={`text-[10px] px-1.5 py-0 border shadow-none ${statusConfig[currentStock.status as keyof typeof statusConfig]?.color || 'bg-gray-100'}`}>
-                        {statusConfig[currentStock.status as keyof typeof statusConfig]?.label || currentStock.status}
-                      </Badge>
-                      {currentStock.price && <span className="text-indigo-600">{currentStock.price} FCFA</span>}
-                    </div>
-                  </div>
-                )}
-
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Nouveau Statut de disponibilité</label>
+                  <label className="text-xs font-bold text-gray-600">Statut</label>
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="h-9 text-xs bg-slate-50/50">
-                      <SelectValue placeholder="Définir la disponibilité..." />
+                    <SelectTrigger className="h-10 text-xs">
+                      <SelectValue placeholder="Disponibilité..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="available" className="text-xs">Disponible</SelectItem>
-                      <SelectItem value="low_stock" className="text-xs">Stock faible</SelectItem>
-                      <SelectItem value="on_order" className="text-xs">Sur commande</SelectItem>
-                      <SelectItem value="out_of_stock" className="text-xs">Rupture de stock</SelectItem>
+                      <SelectItem value="available">Disponible</SelectItem>
+                      <SelectItem value="low_stock">Stock faible</SelectItem>
+                      <SelectItem value="on_order">Sur commande</SelectItem>
+                      <SelectItem value="out_of_stock">Rupture</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Prix unitaire (FCFA) - Optionnel</label>
+                  <label className="text-xs font-bold text-gray-600">Prix (FCFA)</label>
                   <Input
                     type="number"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Ex: 1500"
-                    className="h-9 text-xs bg-slate-50/50"
+                    placeholder="Ex: 2500"
+                    className="h-10 text-xs"
                   />
                 </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">
-                <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                  Pour modifier la garde de la ville d'Ebolowa, utilisez les boutons d'activation directe situés dans le tableau de droite sur la ligne de l'officine souhaitée.
-                </p>
-                <div className="text-xs pt-1">
-                  <span className="text-gray-400">Garde actuelle :</span> <strong className="text-indigo-800">{activeDutyName}</strong>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {activeTab === "stock" && (
-            <>
-              <Button
-                onClick={handleUpdateStock}
-                disabled={stockUpdateMutation.isPending}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 text-xs shadow-md mt-4 flex-none"
-              >
-                {stockUpdateMutation.isPending ? "Mise à jour réseau..." : "Sauvegarder les modifications"}
-              </Button>
-
-              {/* Nouvelle section pour l'upload de fichiers */}
-              <div className="border-t pt-4 mt-4 space-y-3.5">
-                <h3 className="text-md font-bold text-gray-900 tracking-tight">
-                  Importation de données (CSV)
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Importez des pharmacies, médicaments et stocks via un fichier CSV.
-                </p>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Sélectionner un fichier CSV</label>
-                  <Input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className="h-9 text-xs bg-slate-50/50"
-                  />
-                </div>
-                <Button
-                  onClick={handleUpload}
-                  disabled={!selectedFile || isUploading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 text-xs shadow-md flex-none"
+                <Button 
+                  onClick={handleUpdateStock} 
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold h-10"
+                  disabled={stockUpdateMutation.isPending}
                 >
-                  {isUploading ? (
-                    <>
-                      <UploadCloud size={14} className="mr-2 animate-pulse" /> Importation en cours...
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud size={14} className="mr-2" /> Importer le fichier
-                    </>
-                  )}
+                  {stockUpdateMutation.isPending ? "Mise à jour..." : "Appliquer les changements"}
                 </Button>
               </div>
-            </>
-          )}
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Sélectionnez la pharmacie qui est actuellement de garde à Ebolowa.
+                </p>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                  {pharmacies.map((pharm) => (
+                    <div 
+                      key={pharm.id} 
+                      className={`p-3 rounded-lg border flex items-center justify-between transition-all ${pharm.isOnDuty ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200' : 'bg-white border-slate-100 hover:border-slate-300'}`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-900">{pharm.name}</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-tight">{pharm.address}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={pharm.isOnDuty ? "default" : "outline"}
+                        className={`h-7 text-[10px] font-black px-3 ${pharm.isOnDuty ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
+                        onClick={() => handleSetDutyPharmacy(pharm.id)}
+                        disabled={pharmacySetDutyMutation.isPending || pharm.isOnDuty}
+                      >
+                        {pharm.isOnDuty ? "ACTUELLE" : "ACTIVER"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Import CSV */}
+          <Card className="p-6 shadow-sm border-slate-200">
+            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <UploadCloud size={16} className="text-indigo-600" />
+              Importation massive (CSV)
+            </h3>
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              <Button
+                onClick={handleUpload}
+                disabled={isUploading || !selectedFile}
+                variant="outline"
+                className="w-full text-xs font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                {isUploading ? "Importation..." : "Lancer l'importation"}
+              </Button>
+            </div>
+          </Card>
         </div>
 
-        {/* COLONNE DROITE : Visualisation de données défilable */}
-        <div className="flex-1 bg-white border rounded-xl shadow-xs overflow-hidden flex flex-col min-h-0">
-          <div className="p-3 border-b bg-slate-50/50 flex justify-between items-center flex-none">
-            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-              {activeTab === "stock" ? "Registre Général des Stocks Renseignés" : "Liste des Officines et Statuts de Garde"}
-            </h3>
-            <Badge variant="outline" className="text-[10px] bg-white px-2 py-0 border-slate-200">
-              {activeTab === "stock" ? `${stock.length} lignes` : `${pharmacies.length} pharmacies`}
-            </Badge>
-          </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
-            {activeTab === "stock" ? (
-              stock.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-8">Aucun stock répertorié dans la base MySQL.</p>
-              ) : (
-                stock.map((s) => {
-                  const med = medications.find((m) => m.id === s.medicationId);
-                  const pharm = pharmacies.find((p) => p.id === s.pharmacyId);
-                  return (
-                    <div key={`${s.medicationId}-${s.pharmacyId}`} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/40 transition-colors">
-                      <div className="space-y-0.5 max-w-[65%]">
-                        <p className="font-bold text-gray-900 truncate">{med?.name || `Produit #${s.medicationId}`}</p>
-                        <p className="text-gray-500 font-medium truncate flex items-center gap-1">
-                          <Store size={12} className="text-gray-400 flex-none" /> {pharm?.name || `Pharmacie #${s.pharmacyId}`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-none">
-                        <Badge className={`text-[10px] px-2 py-0.5 font-bold border ${statusConfig[s.status as keyof typeof statusConfig]?.color || 'bg-gray-100'}`}>
-                          {statusConfig[s.status as keyof typeof statusConfig]?.label || s.status}
-                        </Badge>
-                        {s.price && <span className="font-extrabold text-gray-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/50 text-[11px]">{s.price} F</span>}
-                      </div>
-                    </div>
-                  );
-                })
-              )
-            ) : (
-              pharmacies.map((pharmacy) => (
-                <div key={pharmacy.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-slate-50/40 transition-colors">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-gray-900 text-sm">{pharmacy.name}</h4>
-                    <p className="text-gray-500 text-xs">{pharmacy.address}</p>
-                    {pharmacy.isOnDuty && (
-                      <Badge className="bg-red-600 text-white font-bold text-[9px] px-1.5 py-0 shadow-xs tracking-wider uppercase animate-pulse">
-                        🚑 En service de garde
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    onClick={() => handleSetDutyPharmacy(pharmacy.id)}
-                    variant={pharmacy.isOnDuty ? "default" : "outline"}
-                    size="sm"
-                    className={`h-8 font-bold text-xs ${pharmacy.isOnDuty ? "bg-red-600 text-white hover:bg-red-700" : "border-slate-200 text-gray-700 hover:bg-slate-50"}`}
-                    disabled={pharmacySetDutyMutation.isPending}
-                  >
-                    {pharmacy.isOnDuty ? "De garde" : "Mettre de garde"}
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
+        {/* Tableaux de données */}
+        <div className="flex-1 min-w-0">
+          <Card className="h-full flex flex-col shadow-sm border-slate-200 overflow-hidden">
+            <div className="p-4 border-b bg-slate-50/50 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Activity size={16} className="text-indigo-600" />
+                Dernières mises à jour des stocks
+              </h3>
+              <Badge variant="secondary" className="bg-white border shadow-none text-xs">
+                {stock.length} entrées
+              </Badge>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-white border-b z-10">
+                  <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3">Produit</th>
+                    <th className="px-4 py-3">Pharmacie</th>
+                    <th className="px-4 py-3">Statut</th>
+                    <th className="px-4 py-3">Prix</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {stock.slice(0, 50).map((s) => {
+                    const med = medications.find(m => m.id === s.medicationId);
+                    const pharm = pharmacies.find(p => p.id === s.pharmacyId);
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-bold text-gray-900 leading-tight">{med?.name}</p>
+                          <p className="text-[10px] text-gray-400">{med?.dci}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 font-medium">{pharm?.name}</td>
+                        <td className="px-4 py-3">
+                          <Badge className={`text-[10px] px-2 py-0 border shadow-none font-bold ${statusConfig[s.status as keyof typeof statusConfig]?.color || 'bg-gray-100'}`}>
+                            {statusConfig[s.status as keyof typeof statusConfig]?.label || s.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-black text-indigo-600">{s.price} FCFA</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       </main>
 
-      {/* 4. Footer Fixe */}
-      <footer className="bg-white border-t py-1.5 flex-none text-center text-[11px] text-gray-400 font-medium">
-        Espace d'Administration Sécurisé PharmaEbolowa — v1.1.0
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
