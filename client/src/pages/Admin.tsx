@@ -66,7 +66,7 @@ export default function Admin() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== "admin" && parsedUser.role !== "pharmacist" && parsedUser.role !== "gerant") {
+    if (parsedUser.role !== "admin" && parsedUser.role !== "pharmacist") {
       setLocation("/");
       return;
     }

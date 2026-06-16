@@ -191,9 +191,7 @@ export async function createLocalUser(data: {
   if (!data.password || data.password.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
-  if (data.role === "pharmacist" && !data.pharmacyId) {
-    throw new Error("Une pharmacie doit être associée à un pharmacien");
-  }
+  // Les pharmaciens peuvent être créés sans pharmacie associée (compte volant)
 
   try {
     // Vérifier si l'utilisateur existe déjà

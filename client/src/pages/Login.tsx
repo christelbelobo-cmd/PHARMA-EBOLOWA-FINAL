@@ -22,7 +22,8 @@ export default function Login() {
       const result = await loginMutation.mutateAsync({ username, password });
       localStorage.setItem("token", result.token);
       localStorage.setItem("user", JSON.stringify(result.user));
-      setLocation(result.user.role === "admin" ? "/admin" : "/");
+      // Rediriger les admins et pharmaciens vers le tableau de bord
+      setLocation(result.user.role === "admin" || result.user.role === "pharmacist" ? "/admin" : "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");
     }
