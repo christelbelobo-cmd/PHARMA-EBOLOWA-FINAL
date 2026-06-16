@@ -42,6 +42,7 @@ export default function Admin() {
   const [newPassword, setNewPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<"pharmacist" | "admin">("pharmacist");
   const [associatedPharmacyId, setAssociatedPharmacyId] = useState<string>("none");
+  const [createdAccount, setCreatedAccount] = useState<{username: string, password: string, role: string} | null>(null);
 
   // Requêtes tRPC
   const { data: medications = [], refetch: refetchMeds } = trpc.medication.list.useQuery();
@@ -175,6 +176,7 @@ export default function Admin() {
       });
 
       setSuccess(`Le compte pour "${newUsername}" a été créé et activé avec succès !`);
+      setCreatedAccount({username: newUsername, password: newPassword, role: newUserRole});
       setNewUsername("");
       setNewPassword("");
       setAssociatedPharmacyId("none");
@@ -404,6 +406,20 @@ export default function Admin() {
 
             {activeTab === "users" && (
               <div className="space-y-4">
+                {createdAccount && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-emerald-900">✓ Compte créé avec succès</h3>
+                      <button onClick={() => setCreatedAccount(null)} className="text-emerald-600 hover:text-emerald-700 text-lg">×</button>
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <p><strong>Identifiant :</strong> <code className="bg-white px-2 py-1 rounded border border-emerald-200 font-mono">{createdAccount.username}</code></p>
+                      <p><strong>Mot de passe :</strong> <code className="bg-white px-2 py-1 rounded border border-emerald-200 font-mono">{createdAccount.password}</code></p>
+                      <p><strong>Rôle :</strong> {createdAccount.role === "admin" ? "Administrateur" : "Pharmacien"}</p>
+                      <p className="text-emerald-700 font-medium mt-2">Partagez ces identifiants avec l'utilisateur pour qu'il se connecte.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3.5">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">Identifiant</label>
@@ -417,7 +433,23 @@ export default function Admin() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Mot de passe</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-600">Mot de passe</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+                          let pwd = '';
+                          for (let i = 0; i < 12; i++) {
+                            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+                          }
+                          setNewPassword(pwd);
+                        }}
+                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                      >
+                        Generer
+                      </button>
+                    </div>
                     <Input
                       type="password"
                       placeholder="Entrer le mot de passe..."
@@ -454,18 +486,32 @@ export default function Admin() {
                   )}
                 </div>
 
-                <Button 
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleCreateUser(e);
-                  }} 
-                  disabled={createUserMutation.isPending} 
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs shadow-xs flex items-center justify-center gap-1.5"
-                >
-                  <Plus size={14}/> {createUserMutation.isPending ? "Création en cours..." : "Activer le compte"}
-                </Button>
+                <div className="space-y-2">
+                  <Button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCreateUser(e);
+                    }} 
+                    disabled={createUserMutation.isPending} 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Plus size={14}/> {createUserMutation.isPending ? "Création en cours..." : "Créer le compte"}
+                  </Button>
+                  {createdAccount && (
+                    <Button 
+                      type="button"
+                      onClick={() => {
+                        setLocation("/login");
+                      }}
+                      variant="outline"
+                      className="w-full text-xs font-bold h-9"
+                    >
+                      Tester la connexion
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
 
