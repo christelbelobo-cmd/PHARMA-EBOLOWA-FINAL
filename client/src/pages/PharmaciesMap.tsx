@@ -15,6 +15,9 @@ import {
   AlertCircle,
   Zap,
   Star,
+  X,
+  ArrowRight,
+  Loader,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -33,6 +36,12 @@ interface PharmacyWithDistance {
   lat?: number;
   lng?: number;
   distance?: number;
+}
+
+interface DirectionInfo {
+  distance: string;
+  duration: string;
+  steps: number;
 }
 
 export default function PharmaciesMap() {
@@ -57,6 +66,9 @@ export default function PharmaciesMap() {
   );
   const [showClosestOnly, setShowClosestOnly] = useState(false);
   const [closestCount, setClosestCount] = useState(3);
+  const [directionInfo, setDirectionInfo] = useState<DirectionInfo | null>(null);
+  const [isLoadingDirections, setIsLoadingDirections] = useState(false);
+  const [pharmacyWithDirections, setPharmacyWithDirections] = useState<PharmacyWithDistance | null>(null);
 
   const { data: pharmacies, isLoading } = trpc.pharmacy.list.useQuery();
 
@@ -171,10 +183,16 @@ export default function PharmaciesMap() {
       return;
 
     if (!window.google?.maps?.DirectionsService) return;
+    
+    setIsLoadingDirections(true);
     const directionsService = new window.google.maps.DirectionsService();
     if (!directionsRendererRef.current) {
       directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
         map: mapRef.current,
+        polylineOptions: {
+          strokeColor: "#2563eb",
+          strokeWeight: 4,
+        },
       });
     }
 
@@ -186,14 +204,38 @@ export default function PharmaciesMap() {
       });
 
       if (result && "routes" in result && result.routes.length > 0) {
+        const route = result.routes[0];
+        const leg = route.legs[0];
+        
         directionsRendererRef.current?.setDirections(result);
         setShowDirections(true);
+        setPharmacyWithDirections(pharmacy);
+        
+        // Extraire les informations d'itinéraire
+        setDirectionInfo({
+          distance: leg.distance?.text || "N/A",
+          duration: leg.duration?.text || "N/A",
+          steps: route.legs.reduce((sum, l) => sum + l.steps.length, 0),
+        });
+        
         toast.success("Itinéraire calculé !");
       }
     } catch (error: unknown) {
       console.error("Erreur lors du calcul de l'itinéraire:", error);
       toast.error("Impossible de calculer l'itinéraire");
+    } finally {
+      setIsLoadingDirections(false);
     }
+  };
+
+  // Masquer les itinéraires
+  const handleClearDirections = () => {
+    if (directionsRendererRef.current) {
+      directionsRendererRef.current.setDirections({ routes: [] });
+    }
+    setShowDirections(false);
+    setDirectionInfo(null);
+    setPharmacyWithDirections(null);
   };
 
   const handleMapReady = (map: google.maps.Map) => {
@@ -304,32 +346,45 @@ export default function PharmaciesMap() {
                   </p>
                 ) : (
                   pharmaciesInRadius.map((pharmacy, index) => (
-                    <button
-                      key={pharmacy.id}
-                      onClick={() => setSelectedPharmacy(pharmacy)}
-                      className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                        selectedPharmacy?.id === pharmacy.id
-                          ? "border-blue-600 bg-blue-50"
-                          : "border-gray-200 hover:border-blue-300"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-semibold text-sm flex items-center gap-2">
-                            {showClosestOnly && index < 3 && (
-                              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                            )}
-                            {pharmacy.name}
+                    <div key={pharmacy.id}>
+                      <button
+                        onClick={() => setSelectedPharmacy(pharmacy)}
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                          selectedPharmacy?.id === pharmacy.id
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-gray-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm flex items-center gap-2">
+                              {showClosestOnly && index < 3 && (
+                                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                              )}
+                              {pharmacy.name}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {pharmacy.distance?.toFixed(2)} km
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {pharmacy.distance?.toFixed(2)} km
+                          <div className="flex items-center gap-1">
+                            {pharmacy.isOnDuty && (
+                              <Badge className="bg-green-600 text-xs">De garde</Badge>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShowDirections(pharmacy);
+                              }}
+                              className="p-2 hover:bg-blue-100 rounded transition-colors"
+                              title="Y aller"
+                            >
+                              <ArrowRight className="w-4 h-4 text-blue-600" />
+                            </button>
                           </div>
                         </div>
-                        {pharmacy.isOnDuty && (
-                          <Badge className="mt-2 bg-green-600 text-xs">De garde</Badge>
-                        )}
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -412,11 +467,50 @@ export default function PharmaciesMap() {
                   </div>
                   <Button
                     onClick={() => handleShowDirections(selectedPharmacy)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                    disabled={isLoadingDirections}
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Navigation className="w-4 h-4" />
-                    Obtenir l'itinéraire
+                    {isLoadingDirections ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Calcul en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="w-4 h-4" />
+                        Y aller
+                      </>
+                    )}
                   </Button>
+
+                  {showDirections && directionInfo && (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-green-900">Itinéraire actif</h4>
+                        <button
+                          onClick={handleClearDirections}
+                          className="p-1 hover:bg-green-100 rounded transition-colors"
+                          title="Masquer l'itinéraire"
+                        >
+                          <X className="w-4 h-4 text-green-600" />
+                        </button>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-700">Distance:</span>
+                          <span className="font-semibold text-green-900">{directionInfo.distance}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-700">Durée:</span>
+                          <span className="font-semibold text-green-900">{directionInfo.duration}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-700">Nombre d'étapes:</span>
+                          <span className="font-semibold text-green-900">{directionInfo.steps}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     onClick={() => setShowStreetView(!showStreetView)}
