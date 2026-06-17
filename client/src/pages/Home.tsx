@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Search, MapPin, Phone, Clock, Map, Pill } from "lucide-react";
+import { Search, MapPin, Phone, Clock, Map, Pill, ChevronRight, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -25,17 +25,36 @@ export default function Home() {
   const { data: pharmacies = [] } = trpc.pharmacy.list.useQuery();
   const { data: stock = [] } = trpc.stock.list.useQuery();
 
-  const searchResults = useMemo(() => {
+  const groupedResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
     const query = searchQuery.toLowerCase();
+    
+    // 1. Filtrer les médicaments qui correspondent à la recherche (Nom ou DCI)
     const matchedMeds = medications.filter(
       (m) =>
         m.name.toLowerCase().includes(query) ||
         (m.dci && m.dci.toLowerCase().includes(query))
     );
 
-    return matchedMeds.map((med) => {
+    // 2. Grouper par DCI (Molécule)
+    const groups: Record<string, any> = {};
+
+    matchedMeds.forEach((med) => {
+      const dciKey = med.dci || "Autres";
+      if (!groups[dciKey]) {
+        groups[dciKey] = {
+          dci: dciKey,
+          medsByForm: {} as Record<string, any[]>,
+        };
+      }
+
+      const formKey = (med as any).form || "Non spécifiée";
+      if (!groups[dciKey].medsByForm[formKey]) {
+        groups[dciKey].medsByForm[formKey] = [];
+      }
+
+      // Récupérer les infos de stock pour ce médicament
       const medStock = stock.filter((s) => s.medicationId === med.id);
       const pharmacyInfo = medStock.map((s) => {
         const pharmacy = pharmacies.find((p) => p.id === s.pharmacyId);
@@ -45,41 +64,39 @@ export default function Home() {
         };
       });
 
-      return {
+      groups[dciKey].medsByForm[formKey].push({
         medication: med,
         pharmacyInfo,
-      };
+      });
     });
+
+    return Object.values(groups);
   }, [searchQuery, medications, stock, pharmacies]);
 
   const dutyPharmacy = pharmacies.find((p) => p.isOnDuty);
 
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans">
-      {/* Header Unifié */}
       <PublicHeader />
 
-      {/* Zone Centrale Dynamique Flex-1 (Prend toute la hauteur restante sans déborder) */}
-      <main className="flex-1 flex flex-col overflow-hidden max-w-4xl w-full mx-auto px-4 py-6 gap-6 justify-center">
+      <main className="flex-1 flex flex-col overflow-hidden max-w-4xl w-full mx-auto px-4 py-6 gap-6">
         
-        {/* Titre accrocheur et compact */}
         <div className="text-center flex-none">
           <h2 className="text-2xl font-extrabold text-gray-900 sm:text-3xl tracking-tight">
             Vérification des médicaments à Ebolowa
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Recherchez instantanément la disponibilité et le prix dans les officines de la ville.
+            Recherchez par molécule ou par nom pour voir les disponibilités.
           </p>
         </div>
 
-        {/* BARRE DE RECHERCHE CORRIGÉE : Bloc visible au centre avec bouton Rechercher */}
         <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100 flex-none">
           <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3 text-gray-400" size={18} />
               <Input
                 type="text"
-                placeholder="Ex: Paracétamol, Ibuprofène, Amoxicilline..."
+                placeholder="Ex: Paracétamol, Amoxicilline..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 py-5 text-base border-gray-200 rounded-lg focus-visible:ring-indigo-500 bg-slate-50/50"
@@ -95,13 +112,10 @@ export default function Home() {
           </form>
         </div>
 
-        {/* 3. Conteneur de Contenu défilable de manière indépendante */}
         <div className="flex-1 overflow-y-auto pr-1 min-h-0">
           
-          {/* CAS A : L'utilisateur n'a pas encore fait de recherche */}
           {!searchQuery.trim() && (
             <div className="space-y-6 py-2">
-              {/* Pharmacie de garde mise en avant */}
               {dutyPharmacy && (
                 <Card className="border-2 border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-white shadow-sm overflow-hidden">
                   <div className="p-4">
@@ -128,7 +142,6 @@ export default function Home() {
                 </Card>
               )}
 
-              {/* Liens d'accès rapide discrets */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Link href="/pharmacies/map">
                   <Card className="p-4 hover:border-indigo-300 hover:shadow-sm transition-all cursor-pointer bg-white group">
@@ -146,7 +159,7 @@ export default function Home() {
                       <Clock className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-gray-900 text-sm">Horaires & Contacts</h4>
                     </div>
-                    <p className="text-xs text-gray-500">Liste complète des 7 pharmacies.</p>
+                    <p className="text-xs text-gray-500">Liste complète des pharmacies.</p>
                   </Card>
                 </Link>
 
@@ -156,71 +169,90 @@ export default function Home() {
                       <Pill className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-gray-900 text-sm">Tout le catalogue</h4>
                     </div>
-                    <p className="text-xs text-gray-500">Explorer les 143+ médicaments.</p>
+                    <p className="text-xs text-gray-500">Explorer tous les médicaments.</p>
                   </Card>
                 </Link>
               </div>
             </div>
           )}
 
-          {/* CAS B : Résultats de la recherche en cours */}
           {searchQuery.trim() && (
-            <div className="space-y-4 py-1">
-              {searchResults.length === 0 ? (
+            <div className="space-y-6 py-1">
+              {groupedResults.length === 0 ? (
                 <div className="text-center py-8 bg-white rounded-xl border border-gray-200 shadow-sm">
                   <p className="text-gray-500 font-medium">
-                    Aucun médicament trouvé pour <span className="font-bold text-gray-700">"{searchQuery}"</span>
+                    Aucune molécule trouvée pour <span className="font-bold text-gray-700">"{searchQuery}"</span>
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Vérifiez l'orthographe ou essayez avec la DCI.</p>
                 </div>
               ) : (
-                searchResults.map((result) => (
-                  <Card key={result.medication.id} className="border-gray-200 shadow-sm bg-white overflow-hidden">
-                    {/* Header Médicament */}
-                    <div className="p-4 bg-slate-50/50 border-b flex justify-between items-start gap-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{result.medication.name}</h3>
-                        {result.medication.dci && (
-                          <p className="text-xs text-gray-500 font-medium">DCI : {result.medication.dci}</p>
-                        )}
-                      </div>
-                      {result.medication.therapeuticCategory && (
-                        <Badge variant="secondary" className="bg-slate-200/70 text-gray-700 border-none text-[11px]">
-                          {result.medication.therapeuticCategory}
-                        </Badge>
-                      )}
+                groupedResults.map((group: any) => (
+                  <div key={group.dci} className="space-y-3">
+                    {/* Titre de la Molécule */}
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="h-8 w-1 bg-indigo-600 rounded-full"></div>
+                      <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                        {group.dci}
+                      </h3>
                     </div>
 
-                    {/* Liste des stocks par Pharmacie */}
-                    <div className="p-3 divide-y divide-gray-100">
-                      {result.pharmacyInfo.length === 0 ? (
-                        <p className="text-sm text-gray-500 p-2 text-center">Aucune donnée de stock disponible.</p>
-                      ) : (
-                        result.pharmacyInfo.map((info) => (
-                          <div key={`${result.medication.id}-${info.pharmacy?.id}`} className="py-3 first:pt-1 last:pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
-                            <div className="space-y-0.5">
-                              <h4 className="font-bold text-gray-800 text-sm">{info.pharmacy?.name}</h4>
-                              <div className="flex items-center gap-3 text-xs text-gray-500">
-                                <a href={`tel:${info.pharmacy?.phone}`} className="text-indigo-600 hover:underline flex items-center gap-0.5 font-medium">
-                                  <Phone size={12} /> {info.pharmacy?.phone}
-                                </a>
+                    {/* Groupes par Forme */}
+                    {Object.entries(group.medsByForm).map(([form, items]: [string, any]) => (
+                      <Card key={form} className="border-gray-200 shadow-sm bg-white overflow-hidden">
+                        <div className="p-3 bg-slate-50 border-b flex items-center gap-2">
+                          <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 font-bold">
+                            {form}
+                          </Badge>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {items.length} variante(s) disponible(s)
+                          </span>
+                        </div>
+
+                        <div className="divide-y divide-gray-100">
+                          {items.map((item: any) => (
+                            <div key={item.medication.id} className="p-4 hover:bg-slate-50/50 transition-colors">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                                    {item.medication.name}
+                                    {item.medication.dosage && (
+                                      <span className="text-indigo-600 font-medium text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                        {item.medication.dosage}
+                                      </span>
+                                    )}
+                                  </h4>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                {item.pharmacyInfo.length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">Aucun stock répertorié pour cette variante.</p>
+                                ) : (
+                                  item.pharmacyInfo.map((info: any) => (
+                                    <div key={`${item.medication.id}-${info.pharmacy?.id}`} className="flex items-center justify-between text-xs py-1.5 border-t border-gray-50 first:border-0">
+                                      <div className="flex items-center gap-2">
+                                        <Store className="w-3 h-3 text-gray-400" />
+                                        <span className="font-bold text-gray-700">{info.pharmacy?.name}</span>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <Badge className={`text-[10px] px-2 py-0 border font-bold ${statusConfig[info.stock.status as keyof typeof statusConfig]?.color || 'bg-gray-100'}`}>
+                                          {statusConfig[info.stock.status as keyof typeof statusConfig]?.label || info.stock.status}
+                                        </Badge>
+                                        {info.stock.price && (
+                                          <span className="font-black text-indigo-600">
+                                            {info.stock.price} FCFA
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-4 flex-none">
-                              <Badge className={`text-xs px-2.5 py-0.5 border font-semibold ${statusConfig[info.stock.status as keyof typeof statusConfig]?.color || 'bg-gray-100'}`}>
-                                {statusConfig[info.stock.status as keyof typeof statusConfig]?.label || info.stock.status}
-                              </Badge>
-                              {info.stock.price && (
-                                <span className="font-extrabold text-indigo-600 text-sm bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50">
-                                  {info.stock.price} FCFA
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </Card>
+                          ))}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 ))
               )}
             </div>
@@ -228,8 +260,30 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Footer Unifié */}
       <PublicFooter />
     </div>
+  );
+}
+
+function Store({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+      <path d="M2 7h20" />
+      <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
+    </svg>
   );
 }
