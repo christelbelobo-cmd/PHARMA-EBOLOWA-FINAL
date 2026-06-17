@@ -231,7 +231,11 @@ export default function PharmaciesMap() {
   // Masquer les itinéraires
   const handleClearDirections = () => {
     if (directionsRendererRef.current) {
-      directionsRendererRef.current.setDirections({ routes: [] });
+      directionsRendererRef.current.setDirections({ 
+        routes: [], 
+        request: {} as google.maps.DirectionsRequest,
+        geocoded_waypoints: [] 
+      });
     }
     setShowDirections(false);
     setDirectionInfo(null);
