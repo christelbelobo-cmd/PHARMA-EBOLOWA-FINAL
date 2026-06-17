@@ -40,14 +40,10 @@ export function getSessionCookieOptions(
   //       : undefined;
 
   const isSecure = isSecureRequest(req);
-  const isLocal = req.hostname && (LOCAL_HOSTS.has(req.hostname) || isIpAddress(req.hostname));
-
   return {
     httpOnly: true,
     path: "/",
-    // En développement local (HTTP), utiliser Strict pour éviter les rejets de cookies
-    // En production (HTTPS), utiliser None pour les requêtes cross-site
-    sameSite: isSecure || isLocal ? (isLocal && !isSecure ? "strict" : "none") : "strict",
+    sameSite: isSecure ? "none" : "strict",
     secure: isSecure,
   };
 }

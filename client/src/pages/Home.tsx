@@ -97,7 +97,7 @@ export default function Home() {
         
         <div className="text-center flex-none">
           <h2 className="text-2xl font-extrabold text-gray-900 sm:text-3xl tracking-tight">
-            Vérification des médicaments à Ebolowa
+            Vérification de la disponibilité des médicaments dans la ville d'Ebolowa
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             Recherchez par molécule ou par nom pour voir les disponibilités.
