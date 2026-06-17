@@ -117,7 +117,7 @@ export default function PharmaciesMap() {
 
   // Mettre à jour les marqueurs quand le rayon change
   useEffect(() => {
-    if (!mapRef.current || !userLocation || !pharmacies) return;
+    if (!mapRef.current || !pharmacies) return;
 
     // Supprimer les anciens marqueurs
     markersRef.current.forEach((marker) => marker.element?.remove());
@@ -126,13 +126,17 @@ export default function PharmaciesMap() {
     // Calculer les pharmacies dans le rayon
     let filtered = pharmacies
       .map((pharmacy) => {
-        // Utiliser les vraies coordonnées de la base de données
+        // Utiliser les coordonnées de la base de données ou défaut Ebolowa
         const lat = pharmacy.latitude || 2.9065;
         const lng = pharmacy.longitude || 11.1606;
 
+        // Si l'utilisateur n'est pas localisé, on utilise le centre d'Ebolowa pour le calcul initial
+        const baseLat = userLocation?.lat || 2.9065;
+        const baseLng = userLocation?.lng || 11.1606;
+
         const distance = calculateDistance(
-          userLocation.lat,
-          userLocation.lng,
+          baseLat,
+          baseLng,
           lat,
           lng
         );
@@ -144,6 +148,7 @@ export default function PharmaciesMap() {
           distance,
         };
       })
+      // Si l'utilisateur n'est pas localisé, on montre tout dans le rayon par rapport au centre
       .filter((p) => p.distance! <= searchRadius[0])
       .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
