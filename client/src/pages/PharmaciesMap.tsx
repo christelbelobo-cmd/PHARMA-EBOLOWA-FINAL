@@ -18,6 +18,7 @@ import {
   X,
   ArrowRight,
   Loader,
+  Crosshair,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -69,50 +70,70 @@ export default function PharmaciesMap() {
   const [directionInfo, setDirectionInfo] = useState<DirectionInfo | null>(null);
   const [isLoadingDirections, setIsLoadingDirections] = useState(false);
   const [pharmacyWithDirections, setPharmacyWithDirections] = useState<PharmacyWithDistance | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
 
   const { data: pharmacies, isLoading } = trpc.pharmacy.list.useQuery();
 
-  // Localiser l'utilisateur
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(loc);
-          userLocationRef.current = loc;
+  // Fonction pour localiser l'utilisateur
+  const handleRequestLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("La géolocalisation n'est pas disponible sur votre appareil");
+      return;
+    }
 
-          // Centrer la carte sur la position de l'utilisateur
-          if (mapRef.current) {
-            mapRef.current.setCenter(loc);
-            mapRef.current.setZoom(14);
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserLocation(loc);
+        setHasLocationPermission(true);
+        userLocationRef.current = loc;
 
-                // Ajouter un marqueur pour la position de l'utilisateur
-                if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-                  new window.google.maps.marker.AdvancedMarkerElement({
-                    map: mapRef.current,
-                    position: loc,
-                    title: "Votre position",
-                    content: createUserMarkerContent(),
-                  });
-                }
-          }
-        },
-        (error) => {
-          console.error("Erreur de géolocalisation:", error);
-          toast.error("Impossible d'accéder à votre localisation");
-          // Localisation par défaut : Ebolowa, Cameroun
-          const defaultLoc = { lat: 2.9065, lng: 11.1606 };
-          setUserLocation(defaultLoc);
-          userLocationRef.current = defaultLoc;
-          if (mapRef.current) {
-            mapRef.current.setCenter(defaultLoc);
+        // Centrer la carte sur la position de l'utilisateur
+        if (mapRef.current) {
+          mapRef.current.setCenter(loc);
+          mapRef.current.setZoom(14);
+
+          // Ajouter un marqueur pour la position de l'utilisateur
+          if (window.google?.maps?.marker?.AdvancedMarkerElement) {
+            new window.google.maps.marker.AdvancedMarkerElement({
+              map: mapRef.current,
+              position: loc,
+              title: "Votre position",
+              content: createUserMarkerContent(),
+            });
           }
         }
-      );
-    }
+        toast.success("Position détectée !");
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Erreur de géolocalisation:", error);
+        setHasLocationPermission(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error("Vous avez refusé l'accès à votre localisation. Veuillez l'autoriser dans les paramètres du navigateur.");
+        } else {
+          toast.error("Impossible de détecter votre position. Utilisation de la localisation par défaut.");
+        }
+        // Localisation par défaut : Ebolowa, Cameroun
+        const defaultLoc = { lat: 2.9065, lng: 11.1606 };
+        setUserLocation(defaultLoc);
+        userLocationRef.current = defaultLoc;
+        if (mapRef.current) {
+          mapRef.current.setCenter(defaultLoc);
+        }
+        setIsLocating(false);
+      }
+    );
+  };
+
+  // Localiser l'utilisateur au chargement
+  useEffect(() => {
+    handleRequestLocation();
   }, []);
 
   // Mettre à jour les marqueurs quand le rayon change
@@ -269,13 +290,32 @@ export default function PharmaciesMap() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Carte */}
           <div className="lg:col-span-3">
-            <Card className="overflow-hidden shadow-lg">
+            <Card className="overflow-hidden shadow-lg relative">
               <MapView
                 initialCenter={userLocation || { lat: 2.9065, lng: 11.1606 }}
                 initialZoom={14}
                 onMapReady={handleMapReady}
                 className="h-[600px]"
               />
+              {/* Bouton "Ma position" */}
+              <button
+                onClick={handleRequestLocation}
+                disabled={isLocating}
+                className="absolute bottom-4 right-4 bg-white hover:bg-gray-100 disabled:bg-gray-100 text-blue-600 disabled:text-gray-400 p-3 rounded-lg shadow-lg border border-gray-200 transition-all flex items-center gap-2 font-medium"
+                title="Activer la localisation"
+              >
+                {isLocating ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Localisation...</span>
+                  </>
+                ) : (
+                  <>
+                    <Crosshair className="w-5 h-5" />
+                    <span className="text-sm">Ma position</span>
+                  </>
+                )}
+              </button>
             </Card>
           </div>
 
