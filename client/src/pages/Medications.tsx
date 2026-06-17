@@ -35,7 +35,7 @@ export default function Medications() {
   }, [medications]);
 
   const filteredMedications = useMemo(() => {
-    return medications.filter((med) => {
+    const filtered = medications.filter((med) => {
       const matchesSearch =
         searchQuery === "" ||
         med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,6 +51,16 @@ export default function Medications() {
       }
 
       return matchesSearch && matchesCategory && matchesAvailability;
+    });
+
+    // Trier : ceux avec des parenthèses au début, sans parenthèses à la fin
+    return [...filtered].sort((a, b) => {
+      const hasParenA = a.name.includes('(') && a.name.includes(')');
+      const hasParenB = b.name.includes('(') && b.name.includes(')');
+
+      if (hasParenA && !hasParenB) return -1;
+      if (!hasParenA && hasParenB) return 1;
+      return a.name.localeCompare(b.name);
     });
   }, [medications, searchQuery, selectedCategory, onlyAvailable, stock]);
 

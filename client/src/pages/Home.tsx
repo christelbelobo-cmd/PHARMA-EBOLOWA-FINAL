@@ -72,7 +72,19 @@ export default function Home() {
       });
     });
 
-    return Object.values(groups);
+    return Object.values(groups).map(group => {
+      const sortedForms = Object.entries(group.medsByForm).sort(([formA], [formB]) => {
+        const isGenericA = formA === "Générique / Autre";
+        const isGenericB = formB === "Générique / Autre";
+        if (isGenericA && !isGenericB) return 1;
+        if (!isGenericA && isGenericB) return -1;
+        return formA.localeCompare(formB);
+      });
+      return {
+        ...group,
+        medsByForm: Object.fromEntries(sortedForms)
+      };
+    });
   }, [searchQuery, medications, stock, pharmacies]);
 
   const dutyPharmacy = pharmacies.find((p) => p.isOnDuty);

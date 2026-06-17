@@ -232,11 +232,21 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const meds = await db.getMedications();
         const query = input.toLowerCase();
-        return meds.filter(
+        const filtered = meds.filter(
           (m) =>
             m.name.toLowerCase().includes(query) ||
             (m.dci && m.dci.toLowerCase().includes(query))
         );
+
+        // Trier : ceux avec des parenthèses au début, sans parenthèses à la fin
+        return filtered.sort((a, b) => {
+          const hasParenA = a.name.includes('(') && a.name.includes(')');
+          const hasParenB = b.name.includes('(') && b.name.includes(')');
+
+          if (hasParenA && !hasParenB) return -1;
+          if (!hasParenA && hasParenB) return 1;
+          return a.name.localeCompare(b.name);
+        });
       }),
   }),
 
