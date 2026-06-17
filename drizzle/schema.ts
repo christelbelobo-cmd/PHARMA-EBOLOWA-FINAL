@@ -36,7 +36,6 @@ export const medications = mysqlTable("medications", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   dci: varchar("dci", { length: 255 }),
-  form: varchar("form", { length: 100 }), // Forme galénique (Comprimé, Sirop, etc.)
   therapeuticCategory: varchar("therapeuticCategory", { length: 255 }),
   dosage: varchar("dosage", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

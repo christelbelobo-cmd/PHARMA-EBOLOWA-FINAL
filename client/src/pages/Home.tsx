@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Search, MapPin, Phone, Clock, Map, Pill, ChevronRight, Info } from "lucide-react";
+import { Search, MapPin, Phone, Clock, Map, Pill, Store } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
@@ -30,14 +30,13 @@ export default function Home() {
 
     const query = searchQuery.toLowerCase();
     
-    // 1. Filtrer les médicaments qui correspondent à la recherche (Nom ou DCI)
+    // 1. Filtrer les médicaments
     const matchedMeds = medications.filter(
       (m) =>
         m.name.toLowerCase().includes(query) ||
         (m.dci && m.dci.toLowerCase().includes(query))
     );
 
-    // 2. Grouper par DCI (Molécule)
     const groups: Record<string, any> = {};
 
     matchedMeds.forEach((med) => {
@@ -49,12 +48,15 @@ export default function Home() {
         };
       }
 
-      const formKey = (med as any).form || "Non spécifiée";
+      // EXTRACTION DE LA FORME : On cherche le texte entre parenthèses dans le nom
+      // Ex: "Paracétamol (Comprimé)" -> Forme = "Comprimé"
+      const formMatch = med.name.match(/\(([^)]+)\)/);
+      const formKey = formMatch ? formMatch[1] : "Générique / Autre";
+
       if (!groups[dciKey].medsByForm[formKey]) {
         groups[dciKey].medsByForm[formKey] = [];
       }
 
-      // Récupérer les infos de stock pour ce médicament
       const medStock = stock.filter((s) => s.medicationId === med.id);
       const pharmacyInfo = medStock.map((s) => {
         const pharmacy = pharmacies.find((p) => p.id === s.pharmacyId);
@@ -187,7 +189,6 @@ export default function Home() {
               ) : (
                 groupedResults.map((group: any) => (
                   <div key={group.dci} className="space-y-3">
-                    {/* Titre de la Molécule */}
                     <div className="flex items-center gap-2 px-1">
                       <div className="h-8 w-1 bg-indigo-600 rounded-full"></div>
                       <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
@@ -195,7 +196,6 @@ export default function Home() {
                       </h3>
                     </div>
 
-                    {/* Groupes par Forme */}
                     {Object.entries(group.medsByForm).map(([form, items]: [string, any]) => (
                       <Card key={form} className="border-gray-200 shadow-sm bg-white overflow-hidden">
                         <div className="p-3 bg-slate-50 border-b flex items-center gap-2">
@@ -203,7 +203,7 @@ export default function Home() {
                             {form}
                           </Badge>
                           <span className="text-xs text-gray-500 font-medium">
-                            {items.length} variante(s) disponible(s)
+                            {items.length} variante(s)
                           </span>
                         </div>
 
@@ -213,7 +213,8 @@ export default function Home() {
                               <div className="flex justify-between items-start mb-3">
                                 <div>
                                   <h4 className="font-bold text-gray-900 flex items-center gap-2">
-                                    {item.medication.name}
+                                    {/* On affiche le nom sans la partie entre parenthèses pour éviter la répétition */}
+                                    {item.medication.name.replace(/\s*\([^)]+\)/, "")}
                                     {item.medication.dosage && (
                                       <span className="text-indigo-600 font-medium text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
                                         {item.medication.dosage}
@@ -225,7 +226,7 @@ export default function Home() {
 
                               <div className="space-y-2">
                                 {item.pharmacyInfo.length === 0 ? (
-                                  <p className="text-xs text-gray-400 italic">Aucun stock répertorié pour cette variante.</p>
+                                  <p className="text-xs text-gray-400 italic">Aucun stock disponible.</p>
                                 ) : (
                                   item.pharmacyInfo.map((info: any) => (
                                     <div key={`${item.medication.id}-${info.pharmacy?.id}`} className="flex items-center justify-between text-xs py-1.5 border-t border-gray-50 first:border-0">
@@ -262,28 +263,5 @@ export default function Home() {
 
       <PublicFooter />
     </div>
-  );
-}
-
-function Store({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-      <path d="M2 7h20" />
-      <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
-    </svg>
   );
 }
