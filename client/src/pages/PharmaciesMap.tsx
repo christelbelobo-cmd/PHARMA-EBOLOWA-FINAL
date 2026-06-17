@@ -13,6 +13,8 @@ import {
   Map,
   Eye,
   AlertCircle,
+  Zap,
+  Star,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -53,6 +55,8 @@ export default function PharmaciesMap() {
   const [pharmaciesInRadius, setPharmaciesInRadius] = useState<PharmacyWithDistance[]>(
     []
   );
+  const [showClosestOnly, setShowClosestOnly] = useState(false);
+  const [closestCount, setClosestCount] = useState(3);
 
   const { data: pharmacies, isLoading } = trpc.pharmacy.list.useQuery();
 
@@ -108,7 +112,7 @@ export default function PharmaciesMap() {
     markersRef.current = [];
 
     // Calculer les pharmacies dans le rayon
-    const filtered = pharmacies
+    let filtered = pharmacies
       .map((pharmacy) => {
         // Utiliser les vraies coordonnées de la base de données
         const lat = pharmacy.latitude || 2.9065;
@@ -130,6 +134,11 @@ export default function PharmaciesMap() {
       })
       .filter((p) => p.distance! <= searchRadius[0])
       .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+    // Afficher seulement les plus proches si activé
+    if (showClosestOnly) {
+      filtered = filtered.slice(0, closestCount);
+    }
 
     setPharmaciesInRadius(filtered);
 
@@ -247,10 +256,46 @@ export default function PharmaciesMap() {
 
             {/* Pharmacies trouvées */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Pharmacies trouvées ({pharmaciesInRadius.length})
-              </h3>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">
+                  Pharmacies trouvées ({pharmaciesInRadius.length})
+                </h3>
+                <button
+                  onClick={() => setShowClosestOnly(!showClosestOnly)}
+                  className={`p-2 rounded-lg transition-all ${
+                    showClosestOnly
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  title="Afficher seulement les plus proches"
+                >
+                  <Zap className="w-5 h-5" />
+                </button>
+              </div>
+              {showClosestOnly && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-700">Les {closestCount} plus proches</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[1, 3, 5].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setClosestCount(num)}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                          closestCount === num
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-blue-600 border border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {isLoading ? (
                   <p className="text-gray-500">Chargement...</p>
                 ) : pharmaciesInRadius.length === 0 ? (
@@ -258,7 +303,7 @@ export default function PharmaciesMap() {
                     Aucune pharmacie trouvée dans ce rayon
                   </p>
                 ) : (
-                  pharmaciesInRadius.map((pharmacy) => (
+                  pharmaciesInRadius.map((pharmacy, index) => (
                     <button
                       key={pharmacy.id}
                       onClick={() => setSelectedPharmacy(pharmacy)}
@@ -268,13 +313,22 @@ export default function PharmaciesMap() {
                           : "border-gray-200 hover:border-blue-300"
                       }`}
                     >
-                      <div className="font-semibold text-sm">{pharmacy.name}</div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {pharmacy.distance?.toFixed(1)} km
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-semibold text-sm flex items-center gap-2">
+                            {showClosestOnly && index < 3 && (
+                              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                            )}
+                            {pharmacy.name}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {pharmacy.distance?.toFixed(2)} km
+                          </div>
+                        </div>
+                        {pharmacy.isOnDuty && (
+                          <Badge className="mt-2 bg-green-600 text-xs">De garde</Badge>
+                        )}
                       </div>
-                      {pharmacy.isOnDuty && (
-                        <Badge className="mt-2 bg-green-600">De garde</Badge>
-                      )}
                     </button>
                   ))
                 )}
@@ -345,6 +399,17 @@ export default function PharmaciesMap() {
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3">
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700 font-semibold mb-2">Distance : {selectedPharmacy.distance?.toFixed(2)} km</p>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(100, (selectedPharmacy.distance || 0) * 10)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                   <Button
                     onClick={() => handleShowDirections(selectedPharmacy)}
                     className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
