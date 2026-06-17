@@ -144,8 +144,8 @@ export default function PharmaciesMap() {
     markersRef.current.forEach((marker) => marker.element?.remove());
     markersRef.current = [];
 
-    // Calculer les pharmacies dans le rayon
-    let filtered = pharmacies
+    // Calculer les pharmacies avec distances
+    let allPharmacies = pharmacies
       .map((pharmacy) => {
         // Utiliser les coordonnées de la base de données ou défaut Ebolowa
         const lat = pharmacy.latitude || 2.9065;
@@ -169,9 +169,15 @@ export default function PharmaciesMap() {
           distance,
         };
       })
-      // Si l'utilisateur n'est pas localisé, on montre tout dans le rayon par rapport au centre
-      .filter((p) => p.distance! <= searchRadius[0])
       .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+    // Filtrer par rayon de recherche
+    let filtered = allPharmacies.filter((p) => p.distance! <= searchRadius[0]);
+
+    // Si aucune pharmacie dans le rayon, afficher au moins les 3 plus proches
+    if (filtered.length === 0 && allPharmacies.length > 0) {
+      filtered = allPharmacies.slice(0, 3);
+    }
 
     // Afficher seulement les plus proches si activé
     if (showClosestOnly) {
@@ -397,7 +403,14 @@ export default function PharmaciesMap() {
                   pharmaciesInRadius.map((pharmacy, index) => (
                     <div key={pharmacy.id}>
                       <button
-                        onClick={() => setSelectedPharmacy(pharmacy)}
+                        onClick={() => {
+                          setSelectedPharmacy(pharmacy);
+                          // Centrer la carte sur la pharmacie sélectionnée
+                          if (mapRef.current && pharmacy.lat && pharmacy.lng) {
+                            mapRef.current.setCenter({ lat: pharmacy.lat, lng: pharmacy.lng });
+                            mapRef.current.setZoom(16);
+                          }
+                        }}
                         className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                           selectedPharmacy?.id === pharmacy.id
                             ? "border-blue-600 bg-blue-50"
