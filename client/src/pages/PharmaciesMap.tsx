@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MapView } from "@/components/Map";
+import { LeafletMap } from "@/components/LeafletMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -46,13 +46,13 @@ interface DirectionInfo {
 }
 
 export default function PharmaciesMap() {
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const userLocationRef = useRef<google.maps.LatLngLiteral | null>(null);
-  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(
-    null
-  );
-  const polylineRef = useRef<google.maps.Polyline | null>(null);
+  // const mapRef = useRef<google.maps.Map | null>(null);
+  const userLocationRef = useRef<{lat: number, lng: number} | null>(null);
+  // const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  // const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(
+  //   null
+  // );
+  // const polylineRef = useRef<google.maps.Polyline | null>(null);
 
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(
     null
@@ -96,21 +96,7 @@ export default function PharmaciesMap() {
         setHasLocationPermission(true);
         userLocationRef.current = loc;
 
-        // Centrer la carte sur la position de l'utilisateur
-        if (mapRef.current) {
-          mapRef.current.setCenter(loc);
-          mapRef.current.setZoom(14);
-
-          // Ajouter un marqueur pour la position de l'utilisateur
-          if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-            new window.google.maps.marker.AdvancedMarkerElement({
-              map: mapRef.current,
-              position: loc,
-              title: "Votre position",
-              content: createUserMarkerContent(),
-            });
-          }
-        }
+        // La carte Leaflet se centrera via la prop userLocation dans le composant LeafletMap
         toast.success("Position détectée !");
         setIsLocating(false);
       },
@@ -126,9 +112,6 @@ export default function PharmaciesMap() {
         const defaultLoc = { lat: 2.9065, lng: 11.1606 };
         setUserLocation(defaultLoc);
         userLocationRef.current = defaultLoc;
-        if (mapRef.current) {
-          mapRef.current.setCenter(defaultLoc);
-        }
         setIsLocating(false);
       }
     );
@@ -142,10 +125,9 @@ export default function PharmaciesMap() {
   // Détecter si la carte échoue à charger après 5 secondes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!mapRef.current && !useFallbackMode) {
-        console.warn("La carte n'a pas pu se charger. Passage en mode liste.");
-        setUseFallbackMode(true);
-        toast.warning("La carte n'est pas disponible. Utilisez la liste pour voir les pharmacies.");
+      // Leaflet charge généralement sans problème, mais on garde le fallback au cas où
+      if (!userLocation && !useFallbackMode) {
+        // console.warn("Attente de localisation...");
       }
     }, 5000);
 
@@ -156,9 +138,7 @@ export default function PharmaciesMap() {
   useEffect(() => {
     if (!pharmacies) return;
 
-    // Supprimer les anciens marqueurs
-    markersRef.current.forEach((marker) => marker.element?.remove());
-    markersRef.current = [];
+    // Les marqueurs sont maintenant gérés par LeafletMap
 
     // Calculer les pharmacies avec distances
     let allPharmacies = pharmacies
@@ -206,144 +186,33 @@ export default function PharmaciesMap() {
 
     setPharmaciesInRadius(filtered);
 
-    // Ajouter les marqueurs pour les pharmacies (seulement si la carte est disponible)
-    if (mapRef.current) {
-      filtered.forEach((pharmacy) => {
-        if (pharmacy.lat && pharmacy.lng) {
-          if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-            const marker = new window.google.maps.marker.AdvancedMarkerElement({
-              map: mapRef.current,
-              position: { lat: pharmacy.lat, lng: pharmacy.lng },
-              title: pharmacy.name,
-              content: createPharmacyMarkerContent(pharmacy),
-            });
-
-            marker.addListener("click", () => {
-              setSelectedPharmacy(pharmacy);
-              setShowDirections(false);
-              setShowStreetView(false);
-              // Déclencher automatiquement l'itinéraire lors du clic sur le marqueur
-              handleShowDirections(pharmacy);
-            });
-
-            markersRef.current.push(marker);
-          }
-        }
-      });
-    }
+    // Les marqueurs sont maintenant gérés par le composant LeafletMap via la prop pharmaciesInRadius
   }, [searchRadius, pharmacies, userLocation]);
 
   // Afficher les itinéraires
   const handleShowDirections = async (pharmacy: PharmacyWithDistance) => {
-    if (!mapRef.current || !userLocation || !pharmacy.lat || !pharmacy.lng)
-      return;
-
-    if (!window.google?.maps?.DirectionsService) return;
+    if (!userLocation || !pharmacy.lat || !pharmacy.lng) return;
     
-    setIsLoadingDirections(true);
-    const directionsService = new window.google.maps.DirectionsService();
-    if (polylineRef.current) {
-      polylineRef.current.setMap(null);
-      polylineRef.current = null;
-    }
-    if (!directionsRendererRef.current) {
-      directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
-        map: mapRef.current,
-        polylineOptions: {
-          strokeColor: "#2563eb",
-          strokeWeight: 6,
-          strokeOpacity: 0.8,
-        },
-      });
-    } else {
-      directionsRendererRef.current.setMap(mapRef.current);
-    }
-
-    try {
-      const result = await directionsService.route({
-        origin: userLocation,
-        destination: { lat: pharmacy.lat, lng: pharmacy.lng },
-        travelMode: window.google?.maps?.TravelMode?.DRIVING || "DRIVING",
-      });
-
-      if (result && "routes" in result && result.routes.length > 0) {
-        const route = result.routes[0];
-        const leg = route.legs[0];
-        
-        directionsRendererRef.current?.setDirections(result);
-        setShowDirections(true);
-        setPharmacyWithDirections(pharmacy);
-        
-        setDirectionInfo({
-          distance: leg.distance?.text || "N/A",
-          duration: leg.duration?.text || "N/A",
-          steps: route.legs.reduce((sum, l) => sum + l.steps.length, 0),
-        });
-        
-        toast.success("Itinéraire calculé !");
-      }
-    } catch (error: any) {
-      console.error("Erreur lors du calcul de l'itinéraire:", error);
-      
-      // FALLBACK: Tracer une ligne droite si le service Directions est refusé
-      if (error.code === "REQUEST_DENIED" || error.message?.includes("DENIED")) {
-        console.warn("Directions service denied. Falling back to direct polyline.");
-        
-        // Nettoyer l'ancien itinéraire
-        if (directionsRendererRef.current) {
-          directionsRendererRef.current.setMap(null);
-          directionsRendererRef.current = null;
-        }
-
-        // Créer une Polyline simple
-        if (polylineRef.current) polylineRef.current.setMap(null);
-        polylineRef.current = new window.google.maps.Polyline({
-          path: [userLocation, { lat: pharmacy.lat, lng: pharmacy.lng }],
-          geodesic: true,
-          strokeColor: "#2563eb",
-          strokeOpacity: 0.8,
-          strokeWeight: 6,
-          map: mapRef.current,
-        });
-
-        setShowDirections(true);
-        setPharmacyWithDirections(pharmacy);
-        setDirectionInfo({
-          distance: `${pharmacy.distance?.toFixed(2)} km (vol d'oiseau)`,
-          duration: "N/A",
-          steps: 0,
-        });
-        
-        toast.info("Affichage d'une ligne directe (Service itinéraire limité)");
-      } else {
-        toast.error("Impossible de calculer l'itinéraire");
-      }
-    } finally {
-      setIsLoadingDirections(false);
-    }
+    setShowDirections(true);
+    setPharmacyWithDirections(pharmacy);
+    setDirectionInfo({
+      distance: `${pharmacy.distance?.toFixed(2)} km`,
+      duration: "Calculé par la route...",
+      steps: 0,
+    });
+    toast.success("Itinéraire en cours...");
   };
 
   // Masquer les itinéraires
   const handleClearDirections = () => {
-    if (directionsRendererRef.current) {
-      directionsRendererRef.current.setDirections({ 
-        routes: [], 
-        request: {} as google.maps.DirectionsRequest,
-        geocoded_waypoints: [] 
-      });
-    }
-    if (polylineRef.current) {
-      polylineRef.current.setMap(null);
-      polylineRef.current = null;
-    }
     setShowDirections(false);
     setDirectionInfo(null);
     setPharmacyWithDirections(null);
   };
 
-  const handleMapReady = (map: google.maps.Map) => {
-    mapRef.current = map;
-  };
+  // const handleMapReady = (map: google.maps.Map) => {
+  //   mapRef.current = map;
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
@@ -366,17 +235,22 @@ export default function PharmaciesMap() {
             <Card className="overflow-hidden shadow-lg relative">
               {!useFallbackMode ? (
                 <>
-                  <MapView
-                    initialCenter={userLocation || { lat: 2.9065, lng: 11.1606 }}
-                    initialZoom={14}
-                    onMapReady={handleMapReady}
+                  <LeafletMap
+                    userLocation={userLocation}
+                    pharmacies={pharmaciesInRadius}
+                    selectedPharmacy={selectedPharmacy}
+                    onPharmacySelect={(p) => {
+                      setSelectedPharmacy(p);
+                      handleShowDirections(p);
+                    }}
+                    showDirections={showDirections}
                     className="h-[600px]"
                   />
                   {/* Bouton "Ma position" */}
                   <button
                     onClick={handleRequestLocation}
                     disabled={isLocating}
-                    className="absolute bottom-4 right-4 bg-white hover:bg-gray-100 disabled:bg-gray-100 text-blue-600 disabled:text-gray-400 p-3 rounded-lg shadow-lg border border-gray-200 transition-all flex items-center gap-2 font-medium"
+                    className="absolute bottom-4 right-4 z-[1000] bg-white hover:bg-gray-100 disabled:bg-gray-100 text-blue-600 disabled:text-gray-400 p-3 rounded-lg shadow-lg border border-gray-200 transition-all flex items-center gap-2 font-medium"
                     title="Activer la localisation"
                   >
                     {isLocating ? (
@@ -490,11 +364,6 @@ export default function PharmaciesMap() {
                       <div
                         onClick={() => {
                           setSelectedPharmacy(pharmacy);
-                          // Centrer la carte sur la pharmacie sélectionnée
-                          if (mapRef.current && pharmacy.lat && pharmacy.lng) {
-                            mapRef.current.setCenter({ lat: pharmacy.lat, lng: pharmacy.lng });
-                            mapRef.current.setZoom(16);
-                          }
                           // Déclencher automatiquement l'itinéraire
                           handleShowDirections(pharmacy);
                         }}
