@@ -162,20 +162,20 @@ export default function PharmaciesMap() {
     // Calculer les pharmacies avec distances
     let allPharmacies = pharmacies
       .map((pharmacy) => {
-        // Utiliser les coordonnées de la base de données ou défaut Ebolowa
-        const lat = pharmacy.latitude || 2.9065;
-        const lng = pharmacy.longitude || 11.1606;
+        // Utiliser les coordonnées de la base de données
+        // Si pas de coordonnées en base, on utilise des coordonnées par défaut légèrement décalées 
+        // pour éviter que toutes les pharmacies sans GPS ne se superposent exactement au même point
+        const lat = pharmacy.latitude || (2.9065 + (pharmacy.id % 10) * 0.001);
+        const lng = pharmacy.longitude || (11.1606 + (pharmacy.id % 10) * 0.001);
 
-        // Si l'utilisateur n'est pas localisé, on utilise le centre d'Ebolowa pour le calcul initial
-        const baseLat = userLocation?.lat || 2.9065;
-        const baseLng = userLocation?.lng || 11.1606;
+        // Position de référence pour le calcul
+        const baseLat = userLocation?.lat;
+        const baseLng = userLocation?.lng;
 
-        const distance = calculateDistance(
-          baseLat,
-          baseLng,
-          lat,
-          lng
-        );
+        // On ne calcule la distance que si on a la position de l'utilisateur
+        const distance = (baseLat && baseLng) 
+          ? calculateDistance(baseLat, baseLng, lat, lng)
+          : undefined;
 
         return {
           ...pharmacy,
@@ -184,7 +184,11 @@ export default function PharmaciesMap() {
           distance,
         };
       })
-      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      .sort((a, b) => {
+        if (a.distance === undefined) return 1;
+        if (b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      });
 
     // Filtrer par rayon de recherche
     let filtered = allPharmacies.filter((p) => p.distance! <= searchRadius[0]);
@@ -461,7 +465,9 @@ export default function PharmaciesMap() {
                               {pharmacy.name}
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
-                              {pharmacy.distance?.toFixed(2)} km
+                              {pharmacy.distance !== undefined 
+                                ? `${pharmacy.distance.toFixed(2)} km`
+                                : "Distance inconnue (activez le GPS)"}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
@@ -544,7 +550,9 @@ export default function PharmaciesMap() {
                     <div>
                       <p className="font-semibold text-gray-900">Distance</p>
                       <p className="text-gray-600">
-                        {selectedPharmacy.distance?.toFixed(1)} km
+                        {selectedPharmacy.distance !== undefined 
+                          ? `${selectedPharmacy.distance.toFixed(2)} km`
+                          : "Position GPS requise"}
                       </p>
                     </div>
                   </div>
@@ -552,7 +560,11 @@ export default function PharmaciesMap() {
 
                 <div className="mt-6 flex flex-col gap-3">
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-700 font-semibold mb-2">Distance : {selectedPharmacy.distance?.toFixed(2)} km</p>
+                    <p className="text-xs text-blue-700 font-semibold mb-2">
+                      Distance : {selectedPharmacy.distance !== undefined 
+                        ? `${selectedPharmacy.distance.toFixed(2)} km`
+                        : "N/A"}
+                    </p>
                     <div className="w-full bg-blue-200 rounded-full h-2">
                       <div
                         className="bg-blue-600 h-2 rounded-full transition-all"
