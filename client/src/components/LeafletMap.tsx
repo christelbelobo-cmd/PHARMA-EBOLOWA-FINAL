@@ -5,18 +5,14 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 import "leaflet-routing-machine";
 
-// Correction des icônes Leaflet par défaut
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-const DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+// Correction des icônes Leaflet par défaut pour éviter les erreurs 404
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
-
-L.Marker.prototype.options.icon = DefaultIcon;
+const iconShadow = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png';
 
 // Icône personnalisée pour l'utilisateur
 const UserIcon = L.icon({
@@ -45,7 +41,7 @@ function Routing({ userLocation, pharmacyLocation }: RoutingProps) {
   useEffect(() => {
     if (!map || !userLocation || !pharmacyLocation) return;
 
-    // @ts-ignore - Leaflet Routing Machine n'a pas de types parfaits pour React
+    // @ts-ignore
     const routingControl = L.Routing.control({
       waypoints: [
         L.latLng(userLocation[0], userLocation[1]),
@@ -60,8 +56,14 @@ function Routing({ userLocation, pharmacyLocation }: RoutingProps) {
       // @ts-ignore
       draggableWaypoints: false,
       fitSelectedRoutes: true,
-      show: false // Cacher le panneau d'instructions textuelles
+      show: false
     }).addTo(map);
+
+    // Masquer le panneau d'instructions qui s'affiche parfois par défaut
+    const container = routingControl.getContainer();
+    if (container) {
+      container.style.display = 'none';
+    }
 
     return () => {
       try {
