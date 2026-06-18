@@ -72,6 +72,8 @@ export default function PharmaciesMap() {
   const [pharmacyWithDirections, setPharmacyWithDirections] = useState<PharmacyWithDistance | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+  const [mapLoadError, setMapLoadError] = useState(false);
+  const [useFallbackMode, setUseFallbackMode] = useState(false);
 
   const { data: pharmacies, isLoading } = trpc.pharmacy.list.useQuery();
 
@@ -135,6 +137,19 @@ export default function PharmaciesMap() {
   useEffect(() => {
     handleRequestLocation();
   }, []);
+
+  // Détecter si la carte échoue à charger après 5 secondes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!mapRef.current && !useFallbackMode) {
+        console.warn("La carte n'a pas pu se charger. Passage en mode liste.");
+        setUseFallbackMode(true);
+        toast.warning("La carte n'est pas disponible. Utilisez la liste pour voir les pharmacies.");
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [useFallbackMode]);
 
   // Mettre à jour les marqueurs quand le rayon change
   useEffect(() => {
@@ -294,34 +309,52 @@ export default function PharmaciesMap() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Carte */}
+          {/* Carte ou Mode de Secours */}
           <div className="lg:col-span-3">
             <Card className="overflow-hidden shadow-lg relative">
-              <MapView
-                initialCenter={userLocation || { lat: 2.9065, lng: 11.1606 }}
-                initialZoom={14}
-                onMapReady={handleMapReady}
-                className="h-[600px]"
-              />
-              {/* Bouton "Ma position" */}
-              <button
-                onClick={handleRequestLocation}
-                disabled={isLocating}
-                className="absolute bottom-4 right-4 bg-white hover:bg-gray-100 disabled:bg-gray-100 text-blue-600 disabled:text-gray-400 p-3 rounded-lg shadow-lg border border-gray-200 transition-all flex items-center gap-2 font-medium"
-                title="Activer la localisation"
-              >
-                {isLocating ? (
-                  <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    <span className="text-sm">Localisation...</span>
-                  </>
-                ) : (
-                  <>
-                    <Crosshair className="w-5 h-5" />
-                    <span className="text-sm">Ma position</span>
-                  </>
-                )}
-              </button>
+              {!useFallbackMode ? (
+                <>
+                  <MapView
+                    initialCenter={userLocation || { lat: 2.9065, lng: 11.1606 }}
+                    initialZoom={14}
+                    onMapReady={handleMapReady}
+                    className="h-[600px]"
+                  />
+                  {/* Bouton "Ma position" */}
+                  <button
+                    onClick={handleRequestLocation}
+                    disabled={isLocating}
+                    className="absolute bottom-4 right-4 bg-white hover:bg-gray-100 disabled:bg-gray-100 text-blue-600 disabled:text-gray-400 p-3 rounded-lg shadow-lg border border-gray-200 transition-all flex items-center gap-2 font-medium"
+                    title="Activer la localisation"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        <span className="text-sm">Localisation...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Crosshair className="w-5 h-5" />
+                        <span className="text-sm">Ma position</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <div className="h-[600px] bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col items-center justify-center p-6">
+                  <div className="text-center">
+                    <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Mode Liste Active</h3>
+                    <p className="text-gray-600 mb-6">La carte n'est pas disponible. Utilisez la liste à droite pour voir les pharmacies.</p>
+                    <Button
+                      onClick={() => setUseFallbackMode(false)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Réessayer la carte
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
 
