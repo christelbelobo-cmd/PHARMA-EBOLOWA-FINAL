@@ -95,8 +95,6 @@ export default function PharmaciesMap() {
         setUserLocation(loc);
         setHasLocationPermission(true);
         userLocationRef.current = loc;
-
-        // La carte Leaflet se centrera via la prop userLocation dans le composant LeafletMap
         toast.success("Position détectée !");
         setIsLocating(false);
       },
@@ -108,11 +106,15 @@ export default function PharmaciesMap() {
         } else {
           toast.error("Impossible de détecter votre position. Utilisation de la localisation par défaut.");
         }
-        // Localisation par défaut : Ebolowa, Cameroun
         const defaultLoc = { lat: 2.9065, lng: 11.1606 };
         setUserLocation(defaultLoc);
         userLocationRef.current = defaultLoc;
         setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     );
   };
@@ -146,8 +148,9 @@ export default function PharmaciesMap() {
         // Utiliser les coordonnées de la base de données
         // Si pas de coordonnées en base, on utilise des coordonnées par défaut légèrement décalées 
         // pour éviter que toutes les pharmacies sans GPS ne se superposent exactement au même point
-        const lat = pharmacy.latitude || (2.9065 + (pharmacy.id % 10) * 0.001);
-        const lng = pharmacy.longitude || (11.1606 + (pharmacy.id % 10) * 0.001);
+        // Répartition plus large pour éviter l'alignement
+        const lat = pharmacy.latitude || (2.9065 + Math.sin(pharmacy.id) * 0.01);
+        const lng = pharmacy.longitude || (11.1606 + Math.cos(pharmacy.id) * 0.01);
 
         // Position de référence pour le calcul
         const baseLat = userLocation?.lat;
