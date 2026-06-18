@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import * as dbPharmacy from "./db-pharmacy";
 import { TRPCError } from "@trpc/server";
 import { dataImportRouter } from "./dataImport";
 import { sdk } from "./_core/sdk"; 
@@ -221,6 +222,119 @@ export const appRouter = router({
         }
         await db.setDutyPharmacy(input);
         return { success: true };
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "Le nom est requis"),
+          address: z.string().min(1, "L'adresse est requise"),
+          phone: z.string().min(1, "Le telephone est requis"),
+          email: z.string().email().optional(),
+          openingHours: z.object({
+            open: z.string(),
+            close: z.string(),
+          }).optional(),
+          mapLink: z.string().optional(),
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Seuls les administrateurs peuvent creer des pharmacies",
+          });
+        }
+
+        try {
+          await dbPharmacy.createPharmacy({
+            name: input.name,
+            address: input.address,
+            phone: input.phone,
+            email: input.email || null,
+            openingHours: input.openingHours
+              ? JSON.stringify(input.openingHours)
+              : null,
+            mapLink: input.mapLink || null,
+            latitude: input.latitude || null,
+            longitude: input.longitude || null,
+            isOnDuty: false,
+          });
+
+          return { success: true, message: "Pharmacie creee avec succes" };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la creation";
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: errorMessage,
+          });
+        }
+      }),
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().min(1).optional(),
+          address: z.string().min(1).optional(),
+          phone: z.string().min(1).optional(),
+          email: z.string().email().optional(),
+          openingHours: z.object({
+            open: z.string(),
+            close: z.string(),
+          }).optional(),
+          mapLink: z.string().optional(),
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+          isOnDuty: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Seuls les administrateurs peuvent modifier les pharmacies",
+          });
+        }
+
+        try {
+          const { id, ...updateData } = input;
+
+          const dataToUpdate: any = { ...updateData };
+          if (updateData.openingHours) {
+            dataToUpdate.openingHours = JSON.stringify(updateData.openingHours);
+          }
+
+          await dbPharmacy.updatePharmacy(id, dataToUpdate);
+          return { success: true, message: "Pharmacie mise a jour avec succes" };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la mise a jour";
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: errorMessage,
+          });
+        }
+      }),
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Seuls les administrateurs peuvent supprimer les pharmacies",
+          });
+        }
+
+        try {
+          await dbPharmacy.deletePharmacy(input);
+          return { success: true, message: "Pharmacie supprimee avec succes" };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Erreur lors de la suppression";
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: errorMessage,
+          });
+        }
+      }),
       }),
   }),
 

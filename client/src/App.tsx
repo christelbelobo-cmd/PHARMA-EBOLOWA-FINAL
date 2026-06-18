@@ -11,6 +11,7 @@ import PharmaciesMap from "./pages/PharmaciesMap";
 import Medications from "./pages/Medications";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
+import PharmaciesManagement from "./pages/PharmaciesManagement";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/medications" component={Medications} />
       <Route path="/login" component={Login} />
       <Route path="/admin" component={Admin} />
+      <Route path="/pharmacies-management" component={PharmaciesManagement} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

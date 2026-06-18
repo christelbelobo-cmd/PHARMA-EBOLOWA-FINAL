@@ -56,16 +56,27 @@ export default function PublicHeader() {
               Pharmacies
             </Button>
           </Link>
-          <Link href="/pharmacies/map">
-            <Button 
-              variant={location === "/pharmacies/map" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="text-gray-600 font-medium"
-            >
-              Carte
-            </Button>
-          </Link>
-        </nav>
+	          <Link href="/pharmacies/map">
+	            <Button 
+	              variant={location === "/pharmacies/map" ? "secondary" : "ghost"} 
+	              size="sm" 
+	              className="text-gray-600 font-medium"
+	            >
+	              Carte
+	            </Button>
+	          </Link>
+	          {(user?.role === "admin" || user?.role === "pharmacist") && (
+	            <Link href="/pharmacies-management">
+	              <Button 
+	                variant={location === "/pharmacies-management" ? "secondary" : "ghost"} 
+	                size="sm" 
+	                className="text-indigo-600 font-bold"
+	              >
+	                Gestion Pharmacies
+	              </Button>
+	            </Link>
+	          )}
+	        </nav>
 
         {/* Actions Utilisateur */}
         <div className="flex items-center gap-2">
