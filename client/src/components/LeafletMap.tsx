@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
@@ -112,27 +112,38 @@ export function LeafletMap({
 
         {userLocation && (
           <Marker position={[userLocation.lat, userLocation.lng]} icon={UserIcon}>
-            <Popup>Votre position</Popup>
+            <Popup permanent>Vous êtes ici</Popup>
+            <Tooltip permanent direction="top" offset={[0, -40]} className="bg-blue-600 text-white font-bold px-2 py-1 rounded shadow-lg border-none">
+              Ma Position
+            </Tooltip>
           </Marker>
         )}
 
-        {pharmacies.map((pharmacy) => (
-          pharmacy.lat && pharmacy.lng && (
-            <Marker
-              key={pharmacy.id}
-              position={[pharmacy.lat, pharmacy.lng]}
-              icon={PharmacyIcon}
-              eventHandlers={{
-                click: () => onPharmacySelect(pharmacy),
-              }}
-            >
-              <Popup>
-                <div className="font-bold">{pharmacy.name}</div>
-                <div className="text-sm">{pharmacy.address}</div>
-              </Popup>
-            </Marker>
-          )
-        ))}
+        {pharmacies.map((pharmacy) => {
+          const isSelected = selectedPharmacy?.id === pharmacy.id;
+          return (
+            pharmacy.lat && pharmacy.lng && (
+              <Marker
+                key={pharmacy.id}
+                position={[pharmacy.lat, pharmacy.lng]}
+                icon={PharmacyIcon}
+                eventHandlers={{
+                  click: () => onPharmacySelect(pharmacy),
+                }}
+              >
+                <Popup>
+                  <div className="font-bold">{pharmacy.name}</div>
+                  <div className="text-sm">{pharmacy.address}</div>
+                </Popup>
+                {isSelected && (
+                  <Tooltip permanent direction="top" offset={[0, -40]} className="bg-green-600 text-white font-bold px-2 py-1 rounded shadow-lg border-none">
+                    {pharmacy.name}
+                  </Tooltip>
+                )}
+              </Marker>
+            )
+          );
+        })}
 
         {showDirections && userLocation && selectedPharmacy && selectedPharmacy.lat && selectedPharmacy.lng && (
           <Routing
