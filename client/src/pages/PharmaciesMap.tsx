@@ -52,6 +52,7 @@ export default function PharmaciesMap() {
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(
     null
   );
+  const polylineRef = useRef<google.maps.Polyline | null>(null);
 
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(
     null
@@ -241,6 +242,10 @@ export default function PharmaciesMap() {
     
     setIsLoadingDirections(true);
     const directionsService = new window.google.maps.DirectionsService();
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
     if (!directionsRendererRef.current) {
       directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
         map: mapRef.current,
@@ -250,6 +255,8 @@ export default function PharmaciesMap() {
           strokeOpacity: 0.8,
         },
       });
+    } else {
+      directionsRendererRef.current.setMap(mapRef.current);
     }
 
     try {
@@ -267,7 +274,6 @@ export default function PharmaciesMap() {
         setShowDirections(true);
         setPharmacyWithDirections(pharmacy);
         
-        // Extraire les informations d'itinéraire
         setDirectionInfo({
           distance: leg.distance?.text || "N/A",
           duration: leg.duration?.text || "N/A",
@@ -276,9 +282,42 @@ export default function PharmaciesMap() {
         
         toast.success("Itinéraire calculé !");
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Erreur lors du calcul de l'itinéraire:", error);
-      toast.error("Impossible de calculer l'itinéraire");
+      
+      // FALLBACK: Tracer une ligne droite si le service Directions est refusé
+      if (error.code === "REQUEST_DENIED" || error.message?.includes("DENIED")) {
+        console.warn("Directions service denied. Falling back to direct polyline.");
+        
+        // Nettoyer l'ancien itinéraire
+        if (directionsRendererRef.current) {
+          directionsRendererRef.current.setMap(null);
+          directionsRendererRef.current = null;
+        }
+
+        // Créer une Polyline simple
+        if (polylineRef.current) polylineRef.current.setMap(null);
+        polylineRef.current = new window.google.maps.Polyline({
+          path: [userLocation, { lat: pharmacy.lat, lng: pharmacy.lng }],
+          geodesic: true,
+          strokeColor: "#2563eb",
+          strokeOpacity: 0.8,
+          strokeWeight: 6,
+          map: mapRef.current,
+        });
+
+        setShowDirections(true);
+        setPharmacyWithDirections(pharmacy);
+        setDirectionInfo({
+          distance: `${pharmacy.distance?.toFixed(2)} km (vol d'oiseau)`,
+          duration: "N/A",
+          steps: 0,
+        });
+        
+        toast.info("Affichage d'une ligne directe (Service itinéraire limité)");
+      } else {
+        toast.error("Impossible de calculer l'itinéraire");
+      }
     } finally {
       setIsLoadingDirections(false);
     }
@@ -292,6 +331,10 @@ export default function PharmaciesMap() {
         request: {} as google.maps.DirectionsRequest,
         geocoded_waypoints: [] 
       });
+    }
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
     }
     setShowDirections(false);
     setDirectionInfo(null);
