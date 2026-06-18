@@ -221,6 +221,8 @@ export default function PharmaciesMap() {
               setSelectedPharmacy(pharmacy);
               setShowDirections(false);
               setShowStreetView(false);
+              // Déclencher automatiquement l'itinéraire lors du clic sur le marqueur
+              handleShowDirections(pharmacy);
             });
 
             markersRef.current.push(marker);
@@ -244,7 +246,8 @@ export default function PharmaciesMap() {
         map: mapRef.current,
         polylineOptions: {
           strokeColor: "#2563eb",
-          strokeWeight: 4,
+          strokeWeight: 6,
+          strokeOpacity: 0.8,
         },
       });
     }
@@ -449,6 +452,8 @@ export default function PharmaciesMap() {
                             mapRef.current.setCenter({ lat: pharmacy.lat, lng: pharmacy.lng });
                             mapRef.current.setZoom(16);
                           }
+                          // Déclencher automatiquement l'itinéraire
+                          handleShowDirections(pharmacy);
                         }}
                         className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
                           selectedPharmacy?.id === pharmacy.id
