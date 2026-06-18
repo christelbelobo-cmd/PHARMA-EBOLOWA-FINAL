@@ -151,9 +151,9 @@ export default function PharmaciesMap() {
     return () => clearTimeout(timer);
   }, [useFallbackMode]);
 
-  // Mettre à jour les marqueurs quand le rayon change
+  // Calculer et afficher les pharmacies (indépendamment de la carte)
   useEffect(() => {
-    if (!mapRef.current || !pharmacies) return;
+    if (!pharmacies) return;
 
     // Supprimer les anciens marqueurs
     markersRef.current.forEach((marker) => marker.element?.remove());
@@ -201,27 +201,29 @@ export default function PharmaciesMap() {
 
     setPharmaciesInRadius(filtered);
 
-    // Ajouter les marqueurs pour les pharmacies
-    filtered.forEach((pharmacy) => {
-      if (mapRef.current && pharmacy.lat && pharmacy.lng) {
-        if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-          const marker = new window.google.maps.marker.AdvancedMarkerElement({
-            map: mapRef.current,
-            position: { lat: pharmacy.lat, lng: pharmacy.lng },
-            title: pharmacy.name,
-            content: createPharmacyMarkerContent(pharmacy),
-          });
+    // Ajouter les marqueurs pour les pharmacies (seulement si la carte est disponible)
+    if (mapRef.current) {
+      filtered.forEach((pharmacy) => {
+        if (pharmacy.lat && pharmacy.lng) {
+          if (window.google?.maps?.marker?.AdvancedMarkerElement) {
+            const marker = new window.google.maps.marker.AdvancedMarkerElement({
+              map: mapRef.current,
+              position: { lat: pharmacy.lat, lng: pharmacy.lng },
+              title: pharmacy.name,
+              content: createPharmacyMarkerContent(pharmacy),
+            });
 
-          marker.addListener("click", () => {
-            setSelectedPharmacy(pharmacy);
-            setShowDirections(false);
-            setShowStreetView(false);
-          });
+            marker.addListener("click", () => {
+              setSelectedPharmacy(pharmacy);
+              setShowDirections(false);
+              setShowStreetView(false);
+            });
 
-          markersRef.current.push(marker);
+            markersRef.current.push(marker);
+          }
         }
-      }
-    });
+      });
+    }
   }, [searchRadius, pharmacies, userLocation]);
 
   // Afficher les itinéraires
