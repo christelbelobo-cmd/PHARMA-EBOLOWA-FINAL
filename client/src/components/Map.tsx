@@ -88,7 +88,9 @@ declare global {
 
 // The system uses the Manus Google Maps proxy, which handles authentication automatically.
 // No user API key is required.
-const FORGE_BASE_URL = "https://forge.butterfly-effect.dev";
+const FORGE_BASE_URL = window.location.origin.includes("localhost") 
+  ? "https://forge.butterfly-effect.dev" 
+  : ""; // On production it might be relative
 const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
 
 function loadMapScript() {
@@ -100,8 +102,8 @@ function loadMapScript() {
     }
 
     const script = document.createElement("script");
-    // Use the proxy URL without an explicit key as per GOOGLE_MAPS_SETUP.md
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?v=weekly&libraries=marker,places,geocoding,geometry,routes`;
+    // Re-adding a placeholder key as some proxy configurations might expect it even if handled server-side
+    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=manus-forge-api-key-v1&v=weekly&libraries=marker,places,geocoding,geometry,routes`;
     script.async = true;
     script.onload = () => {
       resolve(null);

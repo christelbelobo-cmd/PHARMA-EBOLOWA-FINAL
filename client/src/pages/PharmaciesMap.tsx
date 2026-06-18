@@ -651,7 +651,7 @@ export default function PharmaciesMap() {
                     width="100%"
                     height="100%"
                     frameBorder={0}
-                    src={`https://forge.butterfly-effect.dev/v1/maps/proxy/maps/embed/v1/streetview?location=${selectedPharmacy.lat},${selectedPharmacy.lng}&heading=0&pitch=0`}
+                    src={`https://forge.butterfly-effect.dev/v1/maps/proxy/maps/embed/v1/streetview?key=manus-forge-api-key-v1&location=${selectedPharmacy.lat},${selectedPharmacy.lng}&heading=0&pitch=0`}
                     allowFullScreen={true}
                   />
                 </div>
