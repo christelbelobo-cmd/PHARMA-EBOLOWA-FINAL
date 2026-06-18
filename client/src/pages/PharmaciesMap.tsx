@@ -441,7 +441,7 @@ export default function PharmaciesMap() {
                 ) : (
                   pharmaciesInRadius.map((pharmacy, index) => (
                     <div key={pharmacy.id}>
-                      <button
+                      <div
                         onClick={() => {
                           setSelectedPharmacy(pharmacy);
                           // Centrer la carte sur la pharmacie sélectionnée
@@ -450,7 +450,7 @@ export default function PharmaciesMap() {
                             mapRef.current.setZoom(16);
                           }
                         }}
-                        className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
                           selectedPharmacy?.id === pharmacy.id
                             ? "border-blue-600 bg-blue-50"
                             : "border-gray-200 hover:border-blue-300"
@@ -486,7 +486,7 @@ export default function PharmaciesMap() {
                             </button>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -651,9 +651,7 @@ export default function PharmaciesMap() {
                     width="100%"
                     height="100%"
                     frameBorder={0}
-                    src={`https://www.google.com/maps/embed/v1/streetview?key=${
-                      import.meta.env.VITE_FRONTEND_FORGE_API_KEY
-                    }&location=${selectedPharmacy.lat},${selectedPharmacy.lng}&heading=0&pitch=0`}
+                    src={`https://forge.butterfly-effect.dev/v1/maps/proxy/maps/embed/v1/streetview?location=${selectedPharmacy.lat},${selectedPharmacy.lng}&heading=0&pitch=0`}
                     allowFullScreen={true}
                   />
                 </div>
